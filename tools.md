@@ -1,0 +1,74 @@
+# Tools
+
+Everything we used, and how you can reproduce the method on your own machine.
+Our scripts are tied to our machines and are not published here. They are described so you can build your own.
+
+## Shakedown (our own, to be published as `shakedown`)
+
+A small native Windows tool for CPU stability runs. Planned as a public repository called `shakedown`.
+
+- Runs a load you choose (Cinebench 2026 by default) once, for N minutes, or in **Rank** mode.
+- Watches the WHEA log during the run and maps each corrected error to a core by APIC ID.
+- Logs per-core real clock (APERF/MPERF), temperature, throttling and package power through PawnIO's signed IntelMSR module.
+  An on-demand elevated helper task reads the MSRs, so the tool itself runs without admin rights.
+- Closes the load when it crashes, so no error dialog waits for a click.
+- **Rank**: runs the load, holds out the cores that erred (a job object affinity limit the load cannot undo), and runs again until it passes. The order is the weakness ranking.
+- **GPU heat**: a Direct3D 11 compute shader that holds the GPU at full power (520 to 535 W on an RTX 5090) to heat a shared loop. Switches itself off at a water limit.
+- Writes every run to a CSV ledger: note, minutes, result, reason, score, errors, failing cores, hottest core, water start and max, package power, GPU power.
+- Tray icon and a small panel; a command-line build for scripts (`shakedown-cli run --minutes 10 --exclude 2,4`, `rank`, `sensors`, `whea`, `watch`).
+- Reads water temperature from the pump's sensor; this part is specific to our hardware.
+
+## CPU sweep scripts
+
+- **A-Tuning helper**: an elevated scheduled task that reads commands from a file (`minus N`, `plus N`, `apply`, `shot NAME`).
+  It posts clicks to A-Tuning's Vcore buttons and Apply, then captures the window to confirm the value. One press is 5 mV.
+- **Step script**: wait for water at or below a start temperature and an idle GPU (optional), set the voltage, verify the capture, run 10 minutes with GPU heat.
+- **Sweep loop**: step down 10 mV at a time, back to back, stop at the first non-pass and set the last passing value back.
+- **Overnight loop**: 3 x 30 minutes per voltage, move up 10 mV on any non-pass, stop at the first voltage with 90 clean minutes, with a ceiling.
+- **Journal**: a line is written before every step, so the last line names what was running if the PC locks up.
+
+## RAM sweep scripts
+
+- **Sweep controller** (Python, runs as a systemd user service in WSL at every boot): builds the BIOS script, writes it, reboots,
+  verifies the effective values, classifies PASS / FAIL / CRASH / NO TRAIN / NOT APPLIED, runs the test, and keeps state in a JSON file and a Markdown journal.
+- **NVRAM helper**: parses SCEWIN exports and rewrites chosen questions by token.
+- **SCEWIN task**: an elevated scheduled task that runs an export or an import of a staged file. The BIOS admin password stays in an admin-only file and never appears in the scripts or the journal.
+- **Failsafe task**: runs as SYSTEM at startup. If a step's boot repeats without its test starting, it imports the last good script and reboots once.
+- **memlat**: our pointer-chase latency and read bandwidth test (a few dozen lines of C).
+- **dimmtemp**: reads both DIMMs' SPD hub temperatures over SMBus through PawnIO's SmbusI801 module (read only).
+
+## Third-party tools
+
+| Tool | Use |
+|---|---|
+| [Cinebench 2026](https://www.maxon.net/en/tech-info-cinebench) (standalone) | CPU load. Command-line flags let you set a minimum duration and read the score from the console |
+| [y-cruncher](https://www.numberworld.org/y-cruncher/) 0.8.7 | Memory and IMC stress (FFTv4, N63, VT3), plus in-cache tests to rule out cores |
+| [PawnIO](https://pawnio.eu) and [PawnIO.Modules](https://github.com/namazso/PawnIO.Modules) | Signed driver for MSR and SMBus reads |
+| SCEWIN (AMI) | BIOS setup export and import. See [SCEHUB](https://github.com/ab3lkaizen/SCEHUB) |
+| HWiNFO | Voltages, DIMM sensor initialisation, cross-checks |
+| ASRock A-Tuning | Live ratio and Vcore on this board |
+| [CoreCycler](https://github.com/sp00n/corecycler) | Per-core cycling. Not used yet; recommended for light-load errors |
+| [TestMem5](https://github.com/CoolCmd/TestMem5) | DRAM pattern test, planned for final RAM validation |
+
+## Reproduce it on your machine
+
+CPU:
+
+1. Read your event log first. Count WHEA event 19 records by APIC ID. That is your free per-core map.
+2. Run your all-core load and see which cores fail. Hold them out and run again. Repeat until it passes.
+3. If your board can, set per-core ratios. If not, find the all-core ratio the weakest core holds.
+4. Heat the loop the way you actually use it (GPU load on a shared loop). Start each run warm.
+5. Find the voltage floor with short runs, back to back. Then validate 3 x 30 minutes hot. Add margin.
+6. Count silent crashes as fails. Keep a ledger of every run, including the ones you would rather forget.
+
+RAM:
+
+1. Save your working profile to a BIOS slot. Find the Clear CMOS jumper.
+2. Decide how you will recover from a crash loop before you start: you at the keyboard, a failsafe task, or an IP KVM with reset control.
+3. Log DIMM temperature on every test. Note the temperature at the first error.
+4. Bring TX and VDD2 to daily-safe values first. Then secondaries and tRFC, then turnarounds, then primaries. tREFI last.
+5. Two passing runs before a value is kept. Run a control whenever failures cluster.
+6. Read the effective values back after every boot. Watch for the fallback signature.
+7. Finish with long runs, cold-boot retrains and a run with the GPU loaded.
+
+If you automate BIOS writes, test your recovery path with no change first. Ours had a bug in it.
