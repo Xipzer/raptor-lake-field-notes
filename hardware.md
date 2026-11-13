@@ -25,7 +25,19 @@
 - Fans: 9 x Arctic BioniX P12 A-RGB (2026 model, 3,000 rpm max), three chains of three on motherboard headers.
 - Pump: D5 pump/reservoir combo with an LCD that shows coolant temperature.
 - Case: Lian Li O11 Dynamic, run with all panels and filters off.
-- RAM: no heatsink fan at first. A 120 mm fan was aimed at the DIMMs from the night of 12 to 13 November. A RAM water block is planned.
+- RAM: no airflow at first. Since about midnight on 12 to 13 November a loose 120 mm fan sits wedged under the DIMMs, centred.
+  It has not moved since. A DIMM water block is planned.
+
+DIMM temperature under the same y-cruncher load (measured, SPD hub sensors, cooler stick / hotter stick):
+
+| Condition | Steady peak |
+|---|---|
+| No fan, DIMM VDD 1.45 V | 63.5 / 65.8 C |
+| Fan, DIMM VDD 1.45 V | about 52 / 57.5 C |
+| Fan, DIMM VDD 1.50 V | about 53 / 59 C |
+
+So the fan is worth 11 to 12 C on the cooler stick and 8 to 9 C on the hotter one.
+An early figure of 45 / 50 C was a cold-start reading, not a steady one. See [fafo-log.md](fafo-log.md).
 
 ### Loop order
 
@@ -54,10 +66,34 @@ Coolant-driven, run by a small tray app through the Super I/O:
 | Coolant | the pump's own sensor, read over USB HID |
 | GPU power and temperature | NVIDIA NVML (read only) |
 | DIMM temperature | SPD hub thermal sensor on each DIMM, read over SMBus (PawnIO SmbusI801 module). Cross-checked with HWiNFO |
-| Vcore, VccSA, VDD2, TX, DIMM VDD | HWiNFO |
+| Vcore, VccSA, VDD2, TX, DIMM VDD and VDDQ (PMIC) | HWiNFO |
 | Effective BIOS settings | SCEWIN export of the BIOS setup questions |
 
 Core mapping on this CPU: P0..P7 = APIC 0, 8, 16 .. 56. E0..E15 = APIC 64, 66 .. 94.
+
+Two cautions about these sources:
+
+- **HWiNFO and a fan controller can fight over the Super I/O chip.** While HWiNFO was open, our fan-control tray app lost the sensor chip
+  and handed the fans to the BIOS curve. The motherboard fans went to about 3,000 rpm for the 45 s or so that HWiNFO ran.
+  If your fans surge when a monitoring tool starts, this is why.
+- **The board's Vcore sensor reads at the socket, not at the die.** Under load it reads higher than the die voltage. See [cpu/quirks.md](cpu/quirks.md).
+
+### Voltages verified under load (measured, HWiNFO, 13 November)
+
+Read during a Cinebench run with GPU heat (package 427 W, GPU 535 W, water 36.4 C, hottest core P7 at 103 C):
+
+| BIOS setting | Set | HWiNFO sensor | Read |
+|---|---|---|---|
+| DIMM VDD | 1.500 V | PMIC VDD (SWA), both sticks | 1.500 V |
+| DIMM VDDQ | 1.480 V | PMIC VDDQ (SWB), both sticks | 1.485 V |
+| VDD_IMC | 1.350 V | VDDQ TX | 1.350 V |
+| VDD_CPU | 1.450 V | VDD2_CPU | 1.448 V |
+| System Agent | 1.250 V | VCCSA | 1.248 V |
+| CPU Core/Cache, Fixed | 1.350 V (for that one test) | Vcore | 1.344 V |
+| Cache (ring) ratio | 51 (for that one test) | uncore ratio | 51.0x |
+
+This confirms on our own machine what other owners report: **ASRock VDD_IMC is VDDQ_TX, and VDD_CPU is VDD2.**
+It also confirms the DIMM voltages we set are the ones delivered. The BIOS shows no live value for DIMM VDD and VDDQ, so HWiNFO is the only check.
 
 ### BIOS baseline before tuning (from photos of the BIOS)
 
@@ -79,6 +115,8 @@ Core mapping on this CPU: P0..P7 = APIC 0, 8, 16 .. 56. E0..E15 = APIC 64, 66 ..
 | Undervolt Protection | Enabled |
 | Boot Failure Guard | Enabled, count 4 |
 | Memory | XMP Profile 1, DDR5-8400 40-52-52-132 at 1.45 V, Gear 2, timings Auto. VDD/VDDQ 1.455 V |
+
+The settings in use now are in the status section of the [README](README.md). The table above is where we started.
 
 A note on Tj Max: Intel's default is 100 C. This board allows 115 C, and it was set that way before we started.
 Some cores reached 106 C in validation. That is a choice, not a recommendation.

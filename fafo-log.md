@@ -1,6 +1,8 @@
 # FAFO log
 
 What we tried, what broke, and what we learned, in order. Our own mistakes are included. Times are local, November 2026.
+Where a later finding overturned an earlier entry, the entry is corrected in place and the correction is listed under
+"Corrections of our own errors" near the end. Status: 13 November 2026, late afternoon. The RAM sweep is still running.
 
 ## Before tuning
 
@@ -53,18 +55,19 @@ What we tried, what broke, and what we learned, in order. Our own mistakes are i
 - **Mistake:** the XMP baseline logged as FAIL. The error check matched the y-cruncher settings line "Stop on Error: Enabled". It was a pass.
 - **Mistake:** a tRFC 740 write was silently skipped. SCEWIN matches questions by prompt, and the prompt contains the live value. Scripts are now built from a fresh export.
 - **Mistake:** DIMM temperatures logged as 0 C. The SPD hub sensors need initialising after a cold boot.
-- **Mistake:** tWR 40 plus tRTP 20 was logged as FAIL. The BIOS derives tRTP from tWR, so it was NOT APPLIED. And our script then skipped the tWR group by mistake. Rerun.
+- **Mistake:** tWR 40 plus tRTP 20 was logged as FAIL. tRTP had read back 19, so it was NOT APPLIED. And our script then skipped the tWR group by mistake. Rerun.
+  **Second mistake, found a day later:** we explained the 19 as "the BIOS derives tRTP from tWR". It does not. See correction (c).
 - **Tried:** tRFC down from 922. **Found:** 680 passes, 630 does not train.
 - **Tried:** tWR down to 24. **Passed** at every step.
 - **Tried:** tRRD_L 10. **Broke:** NMI bugcheck at boot, then the PC sat frozen for about an hour because dumps were on. The owner pressed reset. **Learned:** turn crash dumps off for a RAM sweep, so a crash reboots at once.
 - **Found:** two earlier shutdown hangs (0x9F). Cause unknown.
-- **Tried:** tWTR 36 / 12. **NOT APPLIED:** the BIOS set 42 / 18.
+- **Tried:** tWTR 36 / 12. **NOT APPLIED:** the BIOS set 42 / 18. We concluded tWTR could not go lower. Wrong: see correction (a).
 - **Tried:** tRCD/tRP 48. **Broke:** crash loop at startup into Windows Recovery. The owner clicked restart.
 - **Mistake:** the failsafe task had a script error and failed on its first real boot. Found by testing it on purpose with no changes. Fixed, then it worked.
 
 ## 13 November, after midnight: the tCL 38 lesson
 
-- A 120 mm fan went on the DIMMs. Peak DIMM temperature dropped by about 10 to 15 C.
+- A 120 mm fan went on the DIMMs. We first wrote that peak temperature dropped by 10 to 15 C. The steady figure is 8 to 12 C: see correction (f).
 - **Tried:** tCL 38. **Passed** once.
 - **Tried:** tCL 36. **No train.** The failsafe and the sweep both recovered it without anyone. **Mistake:** both fired, so one extra reboot. Fixed.
 - **Tried:** tRAS 96, 76: pass. tRAS 64, tREFI 65535, tRFC 670: all failed late in the test.
@@ -74,10 +77,73 @@ What we tried, what broke, and what we learned, in order. Our own mistakes are i
 - Stepped back tCL 38 to 40: control **passed twice**.
 - **Learned:** tCL 38 passed once and was marginal all along. Every step tested on top of it was tested on a broken base. One pass is not a pass. Run controls. Run twice.
 
-## 13 November, plan v2
+## 13 November, night: plan v2, voltages and turnarounds
 
-- Re-read the research and reordered: voltages first (TX and VDD2 at 1.45 V were above every daily recommendation), then the turnarounds, then tRFCpb and tRAS. Temperature-sensitive timings wait for the water block. Every step needs two passes.
-- TX 1.400 V: passed twice. Kept. TX 1.350 V under test at the time of writing.
+- Re-read the research and reordered: voltages first (TX at 1.45 V was above every daily recommendation), then the turnarounds through tWRRD, then tRFCpb, tRAS, tCWL and tREFI. Every step needs two passes in the same boot.
+- **Tried:** TX 1.40, 1.35, 1.30 V. **Passed**, all three, twice each. **Learned:** the board's Auto of 1.45 V was never needed.
+- **Tried:** VDD2 1.42 V. **Broke:** test error within 3 minutes. VDD2 stays 1.45 V.
+- **Tried:** tWRRD_dg 56, 52, 48 and tWRRD_sg 80, 70. **Passed.** tWRRD_sg 64: **no train**, recovered without anyone.
+- **Tried:** tRDWR_dg and _sg 20, 19. **Passed.** tRDRD_sg 15: **passed.**
+- **Tried:** tRDRD_sg 14. **Broke:** no picture at all. The PC sat powered and never reached the BIOS. The failsafe is a Windows task, so it never ran.
+  The owner power-cycled it five times before Boot Failure Guard let it through.
+  **Found:** NVRAM still held every setting. Boot Failure Guard had not loaded defaults. Only the memory had come up at a fail-safe DDR5-3600.
+  **Learned:** a tertiary can do what no primary did. A startup failsafe cannot help with a no-POST. And one clean pass at 15 said nothing about 14.
+- Went back to the trained tRDRD_sg, dropped tWRWR_sg, raised TX from 1.30 to 1.35 V for training margin. Steps that can stop training now wait until the owner is around.
+
+## 13 November, morning: predictions, then the soft steps
+
+- Researched every step left in the queue and wrote a prediction for each. See [ram/predictions.md](ram/predictions.md).
+- **Tried:** tRFCpb 560, 460. **Passed**, and latency dropped by about 1.5 ns. Research had doubted the board uses this timing at all.
+- **Tried:** tRAS 84, 76; tCWL 38; tREFI 40960, 49152. **Passed**, all of them, with the DIMMs at 52 / 57.5 C.
+- **Tried:** ring 51x. Both memory runs passed. **Broke:** Cinebench with GPU heat crashed at 2:24. **Learned:** a CPU-side change needs the CPU test. The memory test alone would have kept it.
+- **Tried:** E-cores 46x. **Passed**, Cinebench 10,059.55.
+- The sweep declared discovery done and started the final validation. The owner stopped it 4 minutes in: rinse out every last drop first.
+
+## 13 November, midday: the extras pass
+
+- **Tried:** tRFCpb 440, 420. **Passed.** Predicted to fail.
+- **Tried:** tREFI 57344, 65535. **Passed** at 52 / 57.5 C. Predicted to fail when warm. The earlier 65535 failure had been the marginal base, not the heat.
+- **Tried:** tCL 38 with tCWL 36 at 1.45 V. **Broke:** the same late error as the controls. So tCL 38 at 1.45 V really is marginal.
+- **Tried:** the same with DIMM VDD/VDDQ 1.50 / 1.48 V. **Passed.** About 1 to 1.5 C warmer DIMMs.
+- **Tried:** tRFC 670, 660. **Passed.** 660 was predicted to fail.
+- **Mistake:** the E-cores 47 write stopped the sweep with "could not read the BIOS". Our reader had looked at the helper's result file before the helper finished writing it. Nothing had been written. See correction (g).
+- **Tried:** E-cores 47x. **Broke:** hard freeze about 3 minutes into the memory test. Clock stopped on the lock screen. The owner held the power button. **Learned:** a freeze does not restart, so nothing unattended recovers it. Second time in one day.
+
+## 13 November, afternoon: the audit
+
+After the freeze the owner asked for a full review. We diffed every live value in the BIOS against the XMP export and re-read the journal for claims we had never checked.
+It found errors (a) to (h) below. Then the sweep went on:
+
+- **Tried:** ring 51x at Vcore 1.350 V. Both memory runs passed. **Broke:** Cinebench with GPU heat crashed at 4:13, P7 at 106 C. **Learned:** 10 mV bought under 2 minutes. The ring stays at 50x.
+- **Checked:** voltages in HWiNFO under load. DIMM VDD 1.500 / VDDQ 1.485 V, TX 1.350 V, VDD2 1.448 V, SA 1.248 V, Vcore sensor 1.344 V at 1.350 V set. Everything we set is delivered.
+  **Side effect found:** while HWiNFO is open, our fan controller loses the sensor chip and the fans go to the BIOS curve, about 3,000 rpm.
+- **Tried:** tRCD/tRP 49. **Passed.** Predicted about 50% to crash at boot.
+- **Tried:** tRRD_L 11. **Passed.** Predicted to crash at boot.
+- **Tried:** tWR 22, 20. **Passed.** tRTP still reads 23.
+- **Tried:** tRTP 19. **NOT APPLIED:** it read back 18. An explicit tRTP reads back one lower than entered, the same as 20 giving 19 a day earlier.
+- tRAS 72 under test at the time of writing (17:00, run 1 of 2 passed). Queued: retries of tRCD/tRP 48 and tRRD_L 10, then the final validation.
+
+## Corrections of our own errors
+
+Things we wrote down as facts or results and later found to be wrong. Each is fixed where it appeared in these notes.
+
+| | What we said | What is true | How we found out |
+|---|---|---|---|
+| (a) | "tWTR stays at XMP 48 / 16. The BIOS will not go below 42 / 18." | tWTR follows tWRRD and tCWL. On this board tWTR = tWRRD - tCWL - 6. It reads 28 / 6 now | The audit diffed live values against XMP |
+| (b) | "The tRAS floor, tRCD + tRTP, is about 61." | tRTP is 23, not 11. The floor was 50 + 23 = 73. tRAS 64 had been below it, and 76 is close to it | Same diff: tRTP read 23 |
+| (c) | "The BIOS derives tRTP from tWR (48 gives 23, 40 gives 19)." | Setting tWR alone does not move tRTP. It stays 23. The 19 came from setting tRTP 20 in the same step: an explicit tRTP reads back one lower | Read tRTP with tWR 24 set alone |
+| (d) | "CRASH ring 51, Vcore 1.350" | False. That step had booted and was never tested. The crash check looked 2 minutes back before the step was set and found the E-cores 47 freeze records | The crash line quoted the same event as the E-cores 47 freeze |
+| (e) | "FAIL ring 51, Vcore 1.350: Cinebench: no ledger line" | The fail was real, the reason was not. The ledger lookup broke on the comma in the run name. The ledger said: crashed at 4:13 | Read the ledger by hand |
+| (f) | "The DIMM fan dropped peaks by 10 to 15 C, to 45 / 50 C." and "the fan was moved at 14:28" | 45 / 50 C was a cold-start reading. Steady benefit is 11 to 12 C on the cooler stick and 8 to 9 C on the hotter: 63.5 / 65.8 C without, about 52 / 57.5 C with, at 1.45 V (about 53 / 59 C at 1.50 V). Nothing moved at 14:28. The fan has sat in one place since it went in | Compared steady peaks. The owner corrected the fan note |
+| (g) | "Could not write E-core ratio 47 (could not read the BIOS)" | A race in our own tooling. The reader did not wait for the helper to finish its result file | Nothing had been written. The reader now waits for the closing line |
+| (h) | (caught before it ran) | The final-benchmark script would have set E-cores to 0 for the "original profile" run, and could loop if that profile crashed | Code review during the audit |
+
+Earlier ones, already described above: the XMP baseline logged as FAIL (a text match on "Stop on Error"); the tRFC 630 no-train suspected to be a shutdown hang (it was a real training failure).
+
+Two of these did damage beyond the notes:
+
+- (c) fed the research. It predicted tWR 22 and 20 would push tRTP under the DRAM minimum, and we dropped tWR 22 for that reason. It passed once we ran it.
+- (b) meant we tested tRAS 64 at all. It was below the floor and could only fail or gain nothing.
 
 ## Running list of lessons
 
@@ -85,7 +151,12 @@ What we tried, what broke, and what we learned, in order. Our own mistakes are i
 2. Ten minutes is not thirty. Near the edge, errors are rare events.
 3. A silent crash counts as a fail.
 4. Test hot, and on a shared loop test with the GPU loaded.
-5. Read the effective settings after every boot. The BIOS may have changed, clamped or reverted your value.
-6. Your tooling is part of the experiment. Five of our "results" were tooling faults.
-7. Order matters: voltages and stable primaries first, temperature-sensitive timings last and only with cool DIMMs.
+5. Read the effective settings after every boot. The BIOS may have changed, clamped or reverted your value. Read the settings you did not touch as well: that is where tWTR and tRTP were hiding.
+6. Your tooling is part of the experiment. More than ten of our "results" were tooling faults, and three of our "rules" were wrong.
+7. Order matters: voltages first, then tertiaries and refresh timings, then the heat-sensitive ones, then anything that can stop the machine.
 8. Fused favoured cores and SP numbers do not tell you which core fails under heat.
+9. A failsafe that runs inside the OS cannot help with a no-POST or a hard freeze. Run those steps only when someone can reach the power button.
+10. Predictions are a guide, not a verdict. A single step on a stable, cooled base behaves very differently from a two-step jump on hot sticks.
+11. A rule you derived from one observation is a guess. We built a floor and a prediction on "tRTP follows tWR" before reading tRTP once.
+12. A CPU-side change needs the CPU test. Ring 51 passed the memory test four times and failed Cinebench twice.
+13. When someone asks for an audit, diff everything against the baseline. Ours found a timing that had been moving for eleven hours without our knowing.

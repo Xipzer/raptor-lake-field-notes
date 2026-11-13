@@ -97,3 +97,11 @@ Our rule now: find the floor with short runs, then validate with 3 x 30 minutes 
 6. Overnight validation: 3 x 30 minutes per voltage from 1.320 V up, stop at the first voltage with 90 clean minutes.
 7. Hybrid per-core profiles at the validated voltage (P2 at 57x, the rest 58x) as a last check.
 8. Final profile written to the BIOS and confirmed by a SCEWIN export.
+9. E-core and ring ratios, one bin at a time, as steps of the RAM sweep (13 November).
+   Each step: two memory stress runs, then 10 minutes of Cinebench with GPU heat. See [results.md](results.md).
+
+## Test the ring and E-cores with the CPU load, not only the memory load
+
+Ring 51x passed our memory stress test four times out of four (two runs at each of two voltages).
+It crashed Cinebench with GPU heat both times, at 2:24 and 4:13.
+If a CPU-side change rides along in a RAM sweep, give it the CPU test too. The memory test alone would have kept a ring ratio that cannot hold an all-core load.

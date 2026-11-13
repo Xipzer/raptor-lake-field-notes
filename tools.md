@@ -30,11 +30,16 @@ A small native Windows tool for CPU stability runs. Planned as a public reposito
 ## RAM sweep scripts
 
 - **Sweep controller** (Python, runs as a systemd user service in WSL at every boot): builds the BIOS script, writes it, reboots,
-  verifies the effective values, classifies PASS / FAIL / CRASH / NO TRAIN / NOT APPLIED, runs the test, and keeps state in a JSON file and a Markdown journal.
+  checks for crashes since the step was set, verifies the effective values, classifies PASS / FAIL / CRASH / NO TRAIN / NOT APPLIED,
+  runs the test twice, and keeps state in a JSON file and a Markdown journal.
+  NO POST and FREEZE cannot be detected by a controller that is not running. A person marks those afterwards.
+- **Groups and gates**: steps are grouped, a group stops at its first failure, and an "alternatives" group tries the next option instead.
+  Groups marked risky wait until the owner has said he is around. CPU-side groups add a Cinebench run with GPU heat through Shakedown.
 - **NVRAM helper**: parses SCEWIN exports and rewrites chosen questions by token.
 - **SCEWIN task**: an elevated scheduled task that runs an export or an import of a staged file. The BIOS admin password stays in an admin-only file and never appears in the scripts or the journal.
 - **Failsafe task**: runs as SYSTEM at startup. If a step's boot repeats without its test starting, it imports the last good script and reboots once.
-- **memlat**: our pointer-chase latency and read bandwidth test (a few dozen lines of C).
+- **memlat**: our pointer-chase latency and read bandwidth test (a few dozen lines of C). It uses 4 KB pages.
+  Its numbers are for before and after on one machine. They are not AIDA64 numbers.
 - **dimmtemp**: reads both DIMMs' SPD hub temperatures over SMBus through PawnIO's SmbusI801 module (read only).
 
 ## Third-party tools
@@ -45,10 +50,10 @@ A small native Windows tool for CPU stability runs. Planned as a public reposito
 | [y-cruncher](https://www.numberworld.org/y-cruncher/) 0.8.7 | Memory and IMC stress (FFTv4, N63, VT3), plus in-cache tests to rule out cores |
 | [PawnIO](https://pawnio.eu) and [PawnIO.Modules](https://github.com/namazso/PawnIO.Modules) | Signed driver for MSR and SMBus reads |
 | SCEWIN (AMI) | BIOS setup export and import. See [SCEHUB](https://github.com/ab3lkaizen/SCEHUB) |
-| HWiNFO | Voltages, DIMM sensor initialisation, cross-checks |
+| HWiNFO | Voltages (including DIMM PMIC VDD and VDDQ), DIMM sensor initialisation, cross-checks. It can take the Super I/O chip away from a fan controller while it is open |
 | ASRock A-Tuning | Live ratio and Vcore on this board |
 | [CoreCycler](https://github.com/sp00n/corecycler) | Per-core cycling. Not used yet; recommended for light-load errors |
-| [TestMem5](https://github.com/CoolCmd/TestMem5) | DRAM pattern test, planned for final RAM validation |
+| [TestMem5](https://github.com/CoolCmd/TestMem5) | DRAM pattern test. Not used yet |
 
 ## Reproduce it on your machine
 
@@ -64,11 +69,18 @@ CPU:
 RAM:
 
 1. Save your working profile to a BIOS slot. Find the Clear CMOS jumper.
-2. Decide how you will recover from a crash loop before you start: you at the keyboard, a failsafe task, or an IP KVM with reset control.
-3. Log DIMM temperature on every test. Note the temperature at the first error.
-4. Bring TX and VDD2 to daily-safe values first. Then secondaries and tRFC, then turnarounds, then primaries. tREFI last.
-5. Two passing runs before a value is kept. Run a control whenever failures cluster.
-6. Read the effective values back after every boot. Watch for the fallback signature.
-7. Finish with long runs, cold-boot retrains and a run with the GPU loaded.
+2. Decide how you will recover before you start. A failsafe task covers crash loops and training fallbacks.
+   A no-POST or a hard freeze needs you at the power button, or remote power control. We had both in one day.
+3. Turn crash dumps off and disable Windows Recovery for the sweep. Write down everything you changed so you can undo it.
+4. Log DIMM temperature on every test. Note the temperature at the first error. Compare steady peaks, not cold starts.
+5. Bring TX and VDD2 to daily-safe values first. Then turnarounds through tWRRD, then tRFCpb, tRAS, tCWL, then tREFI in stages.
+   Heat-limited items and anything that can stop training come last, one clock at a time.
+6. Two passing runs before a value is kept. Run a control whenever failures cluster.
+7. Read the effective values back after every boot, including the ones you did not touch. Watch for the fallback signature.
+   Diff the whole timing page against your baseline now and then. Ours showed tWTR had moved and tRTP had not.
+8. Give ring and E-core changes a CPU load test as well as the memory test.
+9. Write a prediction for each risky step, then test anyway. See [ram/predictions.md](ram/predictions.md).
+10. After every unclean stop: `chkdsk /scan`, `sfc /scannow`, and an export to confirm what the BIOS is running.
+11. Finish with long runs, retrain boots and a run with the GPU loaded.
 
 If you automate BIOS writes, test your recovery path with no change first. Ours had a bug in it.

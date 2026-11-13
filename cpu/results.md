@@ -5,11 +5,35 @@ All runs on Projector. Load: Cinebench 2026.1.3 multi-core. E-cores 45x and ring
 
 ## Result
 
-**Daily profile: 57x all P-cores, E 45x, ring 50x, fixed 1.340 V, LLC Level 1.** Now in the BIOS, confirmed by a SCEWIN export.
+**Daily profile: 57x all P-cores, ring 50x, fixed 1.340 V, LLC Level 1. E-cores 46x since 13 November (was 45x).**
+In the BIOS, confirmed by a SCEWIN export.
 
-- Proof: 3 x 30 minutes of Cinebench plus GPU heat, back to back, 0 errors. Scores 9,880 / 9,875 / 9,877.
+- Proof for 57x / 1.340 V (with E 45x): 3 x 30 minutes of Cinebench plus GPU heat, back to back, 0 errors. Scores 9,880 / 9,875 / 9,877.
   Water 37.6 to 39.5 C, package 413 to 418 W, hottest core P7 at 103 / 105 / 106 C (Tj Max is 115 C here, no throttling).
 - Cost against 59x: 3.4% clock. Measured all-core cost of 58x to 57x: about 0.7% in Cinebench. Games: estimate 0 to 3%, depending on how CPU-bound they are.
+- E-cores 46x has passed 10 minutes with GPU heat so far, not 30. The 30-minute run is part of the final validation, which has not run yet.
+
+## E-cores and ring (13 November)
+
+These ran as steps of the RAM sweep, on top of the RAM settings kept at that moment.
+Each step had to pass two 7-minute y-cruncher memory runs and then 10 minutes of Cinebench with GPU heat.
+
+| Step | Outcome | What happened |
+|---|---|---|
+| E-cores 46x | **PASS, kept** | Both memory runs clean. Cinebench 10 min with GPU heat: 10,059.55, 0 errors, P7 at 105 C, water 31.4 to 37.1 C. Measured E-core clock 4,580 MHz |
+| E-cores 47x | **FREEZE** | Hard freeze about 3 minutes into the first memory run. No blue screen, no WHEA record, only an unclean-shutdown event. The owner held the power button |
+| Ring 51x at 1.340 V | **FAIL** | Both memory runs clean (71.1 / 71.7 ns). Cinebench with GPU heat crashed at 2:24, no WHEA record, P7 at 101 C |
+| Ring 51x at 1.350 V | **FAIL** | Both memory runs clean (70.3 / 70.6 ns). Cinebench with GPU heat crashed at 4:13, no WHEA record, P7 at 106 C, package 429 W |
+| Ring 52x, E-cores 48x | not tested | |
+
+Verdicts:
+
+- **E-cores stay at 46x.** 47x did not fail a test, it froze the machine. That is a harder kind of failure than the research guessed (see [../ram/predictions.md](../ram/predictions.md)).
+- **The ring stays at 50x.** 10 mV more bought under 2 minutes, and more voltage means more than 106 C on P7.
+  Ring 51 passed the memory test twice at both voltages. Its latency gain was about 0.3 ns at most, which is inside run-to-run noise.
+  It only failed under Cinebench with the GPU heating the loop. A memory test alone would have kept it.
+- Score: 10,059.55 against 9,884.75 for the like-for-like 10-minute run at E 45x on 12 November. That is +1.8%.
+  The E 46x run also had the tuned RAM under it, so we cannot say how much is E-cores and how much is RAM.
 
 ## Per-core failure map
 
@@ -86,16 +110,21 @@ Errors are corrected CPU errors (WHEA).
 | 10:24 | 57x all, 1.340 V, 30 min, run 3 of 3 | 30 | PASS | | 9,877.21 | 0 | | P7 106 C | 38.9 to 39.5 | 418 | 535 |
 | 18:31 | P2 57x, rest 58x, 1.340 V (BIOS), GPU heat | 10 | FAIL | crashed at 2:32 | | 4 | P4 | P7 100 C | 27.6 to 32.9 | 411 | 530 |
 | 18:41 | P2 P4 57x, rest 58x, 1.340 V (BIOS), GPU heat | 10 | FAIL | load exited with an access violation at 5:58 | | 3 | P5 | P7 101 C | 27.3 to 35.0 | 415 | 537 |
+| 13 Nov 10:31 | 57x, E 45x, **ring 51x**, 1.340 V, GPU heat | 10 | FAIL | crashed at 2:24, no WHEA | | 0 | | P7 101 C | 31.1 to 34.4 | 414 | 534 |
+| 10:52 | 57x, **E 46x**, ring 50x, 1.340 V, GPU heat | 10 | PASS | | 10,059.55 | 0 | | P7 105 C | 31.4 to 37.1 | 417 | 534 |
+| 15:17 | 57x, E 46x, **ring 51x, 1.350 V**, GPU heat | 10 | FAIL | crashed at 4:13, no WHEA | | 0 | | P7 106 C | 32.0 to 36.4 | 429 | 533 |
 
 Notes on individual runs:
 
 - 04:27: the GPU heat in use was an early pixel-shader build that drew only about 117 W and stole CPU time. Treat the GPU column for 04:27 to 04:34 with care.
 - 04:34: holding P2 out did not save 59x at ring 45x. Ring 45x did not help at all.
 - 05:00: GPU heat was switched off part way, so this pass is milder than the 1.360 V fail at 05:36.
+- 13 November rows: the RAM under these runs was the tuned set of that hour, not XMP. See [../ram/results.md](../ram/results.md).
+  E-cores 47x has no ledger row: it froze in the memory test before Cinebench started.
 - 05:12: package power was about the same as at 1.360 V, so at the time we could not confirm A-Tuning had applied 1.340 V. Later screen captures confirmed each A-Tuning step.
 
 ## Scores
 
 Scores move by under 1% between passing runs at the same setting. Higher voltage at the same ratio did not raise the score.
-58x scored 9,921 to 9,974. 57x scored 9,800 to 9,885.
+58x scored 9,921 to 9,974. 57x scored 9,800 to 9,885 with E 45x and XMP RAM, and 10,059.55 with E 46x and the tuned RAM.
 A run's score depends on how much of it ran with GPU heat and how hot the water got, so compare scores only between like runs.

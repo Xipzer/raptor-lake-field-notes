@@ -20,6 +20,10 @@ The hottest-core gap is larger than the per-watt average suggests. Two examples 
 |---|---|---|---|---|
 | 57x 1.340 V, 30 min, run 1 | P7 103 C | 39.2 C | about 64 C | 413 W |
 | 57x 1.340 V, 30 min, run 3 | P7 106 C | 39.5 C | about 66 C | 418 W |
+| 57x 1.340 V, E 46x, 10 min (13 Nov) | P7 105 C | 37.1 C | about 68 C | 417 W |
+| 57x 1.350 V, ring 51x, crashed at 4:13 (13 Nov) | P7 106 C | 36.4 C | about 70 C | 429 W |
+
+The last row is why we did not chase ring 51x with more voltage: +10 mV added about 12 W and put P7 at 106 C on water 3 C cooler than the validation runs.
 
 ## Fixed per-core offsets
 
