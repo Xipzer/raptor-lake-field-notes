@@ -20,13 +20,13 @@
 ### Cooling
 
 - CPU block: SuperCool direct-die, newer hybrid frame (no through-board mounting). Nickel cold plate, never polished.
-- Liquid metal on the bare die. The old application was still liquid and shiny after months.
+- Liquid metal on the bare die. Redone with a fresh syringe on 14 November: the application from a few days earlier had crusted over the P-core area and never wetted properly. See [cpu/thermals.md](cpu/thermals.md).
 - Radiators: 3 x 360 mm, 30 mm thick, 16 FPI (top, bottom, side).
 - Fans: 9 x Arctic BioniX P12 A-RGB (2026 model, 3,000 rpm max), three chains of three on motherboard headers.
 - Pump: D5 pump/reservoir combo with an LCD that shows coolant temperature.
 - Case: Lian Li O11 Dynamic, run with all panels and filters off.
 - RAM: no airflow at first. Since about midnight on 12 to 13 November a loose 120 mm fan sits wedged under the DIMMs, centred.
-  It has not moved since. A DIMM water block is planned.
+  It has not moved since (it was unplugged for part of one test on 14 November, noted where it matters). A DIMM water block is on its way.
 
 DIMM temperature under the same y-cruncher load (measured, SPD hub sensors, cooler stick / hotter stick):
 
@@ -35,8 +35,9 @@ DIMM temperature under the same y-cruncher load (measured, SPD hub sensors, cool
 | No fan, DIMM VDD 1.45 V | 63.5 / 65.8 C |
 | Fan, DIMM VDD 1.45 V | about 52 / 57.5 C |
 | Fan, DIMM VDD 1.50 V | about 53 / 59 C |
+| Fan, DIMM VDD 1.50 V, TestMem5 | up to about 55 / 62 C |
 
-So the fan is worth 11 to 12 C on the cooler stick and 8 to 9 C on the hotter one.
+So the fan is worth 11 to 12 C on the cooler stick and 8 to 9 C on the hotter one. The two sticks run 6 to 9 C apart, and the hotter one sets the memory limit.
 An early figure of 45 / 50 C was a cold-start reading, not a steady one. See [fafo-log.md](fafo-log.md).
 
 ### Loop order
@@ -131,8 +132,10 @@ Idle package power with package C-states off and fixed voltage: 80 to 140 W.
 | Board | ASRock Z790I Lightning WiFi, microcode 0x12F |
 | Settings | 59x all P-cores, 46x E-cores, ring 50x, BCLK 99.8 MHz, fixed Vcore about 1.35 V (1.344 V measured at about 400 W), very flat load line, power unlimited |
 | C-states | On (idle package 35 to 59 W) |
-| RAM | DDR5-6600, VccSA about 1.0 V, TX 1.40 V, VDD2 1.40 V |
+| RAM | 2x48 GB DDR5-6600, VccSA about 1.0 V, TX 1.40 V, VDD2 1.40 V. Run without heat spreaders for clearance. Latency with our tool: 103 to 106 ns idle, about 111 ns under light load, about 92 GB/s read (Projector: about 71 ns) |
+| Cooling | Liquid metal redone on 14 to 15 November (its seventh application). See [cpu/thermals.md](cpu/thermals.md) |
 | Record | 0 corrected CPU errors in 120 days under a 200 to 300 W 24/7 server load |
 
 The catch: every Printer Cinebench log was 3 to 5 minutes on 24 to 28 C water.
 Printer has never been tested at Projector's heat-soaked water temperature. "Printer is stable at 59x" is proven only in those conditions.
+Printer tuning (RAM and CPU, with the same method) is next.

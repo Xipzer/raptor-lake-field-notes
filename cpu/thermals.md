@@ -9,6 +9,7 @@ It is the best single number for "is the cold plate contact still good?", becaus
 
 - **12.0 to 12.6 C per 100 W**, flat across 7 hours of about 400 W load (12 November, 03:48 to 10:57).
 - Flat means no liquid-metal degradation over that period, even with cores at 90 to 106 C for hours.
+- Flat is not the same as good. When the block was opened on 14 November the contact turned out to have been poor from the start of this application. See "The repaste" below.
 
 We had a scare that evening: the gap between the hottest core and the water looked 5 to 7 C worse than in the morning.
 The per-watt figure was still flat. The difference was power and inlet temperature, not the interface.
@@ -36,7 +37,8 @@ The same offsets showed up in every run, relative to the core average:
 | P5 | about +2 C |
 | P0, P1, P6 | about -3 to -4 C |
 
-Spread across P-cores: about 10 C. Steady all night. A spread that suddenly changes is a better sign of a contact problem than a hot run.
+Spread across P-cores: about 10 C on 12 November. Steady all night. A spread that suddenly changes is a better sign of a contact problem than a hot run.
+By 14 November it was 19 C (P1 87 C to P7 106 C at 421 W), and the E-cores were hotter than P1. That is what sent us to open the block.
 
 P7 being the hottest made it fail first at 59x under heat, even though it is not one of the weaker cores when cool.
 
@@ -66,3 +68,48 @@ The fans only reached 65% during validation because the curve was capped at 80% 
   ([source](https://skatterbencher.com/2022/12/04/skatterbencher-49-intel-core-i9-13900k-overclocked-to-6100mhz/)).
   Our P2 numbers (about 4 mV per C) are steeper than that. Your chip will differ again.
 - Cooling helps, but on its own it will not buy a full ratio bin.
+
+## The repaste (14 November)
+
+The owner opened the block and redid the liquid metal with a fresh syringe.
+
+What was found (from the owner's photos):
+
+- A matt, granular crust over the centre and upper part of the die, the P-core area. Shiny wet metal only at the bottom third.
+- The old application was only 3 to 4 days old, from a rebuild earlier that week. At that job the metal would not wet part of the die despite a generous amount, and old metal may have been drawn back into the syringe.
+- Our reading: most likely oxidised metal reused from the syringe. Oxide-laden metal is grainy and does not wet. Conductonaut Extreme also wets poorly and tends to bead. Not slow drying.
+
+Same load before and after: y-cruncher on all 32 threads for 100 seconds (Measured):
+
+| | Before | After |
+|---|---|---|
+| Water | about 26 to 28 C | 24.0 to 25.6 C |
+| Hottest core | 95 C at 430 W (P6) | 81 to 83 C at 440 to 513 W (P3, P5, P7) |
+| Hottest core above water, per 100 W | about 16 C | about 13 C |
+| P-core spread | 19 C (heat-soaked, Cinebench) | 11 C (P6 72 to P3 83 C) |
+
+The hot spot moved from P6 / P7 to P3 / P5 / P7. The "after" runs are short, not heat-soaked, so this is a like-for-like short-load comparison only. A re-check in about a week is planned.
+
+### What liquid metal actually does over time
+
+- **It does not dry. It alloys.** Gallium reacts with the metal it touches. On a nickel-plated surface a thin nickel-gallium layer forms and then stops growing.
+  A two-year test by der8auer found the contact still working after the reaction ([TechPowerUp](https://www.techpowerup.com/353807/long-term-liquid-metal-tests-reveal-promising-longevity-despite-reactions)).
+- So "dried out" is usually one of: gallium taken up by a fresh surface, oxidised metal, or metal that never wetted in the first place.
+- The die's backside metal can stain brown. Harmless. **Do not polish the die.** A grey patch on a nickel lid is the alloy layer and is permanent.
+- Judge a repaste per watt above water, at the same load, never by one hot run.
+
+### Printer's repaste, for comparison (Measured on Printer, Cinebench, rows above 250 W)
+
+| Log | Hottest core above water, per 100 W | Hottest P-core vs the rest |
+|---|---|---|
+| After the previous repaste, 10 Oct | 12.3 C | level |
+| Before cleaning, 12 Nov | 13.9 C | P7 about 8 C hotter |
+| Before cleaning, 14 Nov | 14.0 C | P7 about 8 C hotter |
+| After the repaste, 15 Nov | 12.7 C | level |
+
+Printer's die was crusted all over after about 5 weeks. The repaste took its hottest core from 14.0 to 12.7 C per 100 W above water and cleared the P7 hot spot.
+
+## GPU, for reference
+
+The RTX 5090 die runs 18 to 20 C above the coolant at 600 to 700 W (owner's reading). Thermal Grizzly publishes 18.8 K average and 19.4 K maximum for Conductonaut Extreme on its own RTX 5090 block (Source: the vendor's own published figures; we did not keep the link).
+So the GPU contact is at the published level and was left alone.

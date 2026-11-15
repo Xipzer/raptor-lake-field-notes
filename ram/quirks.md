@@ -18,9 +18,10 @@
 | State | tWRRD_dg / sg | tCWL | tWTR_S / tWTR_L shown |
 |---|---|---|---|
 | XMP | 62 / 94 | 40 | 16 / 48 |
-| Kept set | 48 / 70 | 36 | 6 / 28 |
+| 13 Nov kept set | 48 / 70 | 36 | 6 / 28 |
+| Final set (15 Nov) | 46 / 64 | 34 | 6 / 24 (Estimate, from the formula; not read back) |
 
-- So tWTR is **not** at its XMP value in our kept set. It dropped when we lowered tWRRD, and it rose again a little when we lowered tCWL.
+- So tWTR is **not** at its XMP value in our tuned sets. It dropped when we lowered tWRRD, and it rose again a little when we lowered tCWL.
   For a while our notes said "tWTR stays 48 / 16, the BIOS will not go lower". That was wrong. See [../fafo-log.md](../fafo-log.md).
 - Our direct write of tWTR 36 / 12 came back as 42 / 18 after boot, with no retrain. Both came back 6 higher than entered.
   ASRock owners report the same 6-cycle offset between typed and shown values (OCN-INTEL post 32688; OCN-LIGHT post 3789).
@@ -33,16 +34,18 @@
 - The evidence we misread: one step set tWR 40 and tRTP 20 together, and tRTP read back 19. We took the 19 as "derived from tWR 40".
 - The read-backs that settle it: with tWR 24 set alone, tRTP read 23. With tWR at 20 it still reads 23. 23 is the XMP value.
 - The 19 came from setting tRTP 20. An explicit tRTP reads back one clock lower than entered: 20 gave 19, and later 19 gave 18.
-  Our sweep counts a read-back that differs from the entry as NOT APPLIED and does not test it. So tRTP is still untuned at 23.
+  Our sweep first counted a read-back that differs from the entry as NOT APPLIED and did not test it. Once the checker expected "entered minus 1",
+  entered 20, 16 and 13 read 19, 15 and 12 and all passed. tRTP is now 12, the DRAM minimum.
 - Consequence: there is no tWR floor for tRTP's sake. We skipped tWR 22 for hours for a reason that did not exist.
 
-## The tRAS floor is tRCD + tRTP, with the tRTP you read back
+## The tRAS "floor" is not a hard limit
 
-- Rule (integralfx; Pakhtunov): tRAS below tRCD + tRTP does not shorten the read path. It gains nothing and can fail.
-- We computed the floor as 50 + 11 = about 61, with a tRTP we had estimated from the wrong tWR rule above.
-- The read-back tRTP is 23. The floor was 50 + 23 = **73**, and is 49 + 23 = 72 now that tRCD is 49.
-- So tRAS 76 is close to the floor, and the tRAS 64 we tested on 13 November was below it.
-- Never compute this from an assumed tRTP. Read it back.
+- Rule (integralfx; Pakhtunov): tRAS below tRCD + tRTP does not shorten the read path. It gains nothing.
+- We first computed the floor with a wrong tRTP (50 + 11 = 61), then with the read-back one (49 + 23 = 72), and expected anything below it to fail.
+- **tRAS 68 passed twice with tRCD 49 and tRTP 23,** four clocks below that floor. tRAS 64 passed too.
+- So on this board the sum is where tRAS stops being the binding limit, not a point where it breaks. Below it: no gain, and in our runs no harm.
+- With the final tRTP of 12, tRCD + tRTP is 61, and tRAS 64 sits just above it.
+- Read tRTP back before you compute anything from it.
 
 ## ASRock BIOS behaviours we hit
 
@@ -58,6 +61,11 @@
 - **A harmless warning on every import**: "Error in writing variable TcgStorageDynamicSetupVar to NVRAM". The settings we wrote still applied.
 - **VDD_CPU and VDD_IMC follow XMP voltage on Auto.** On our kit that put TX and VDD2 at 1.45 V.
 - **"Realtime Memory Timing"** exists and can be enabled from SCEWIN. Whether live timing changes work on this board under VBS: untested. Live changes cannot retrain, so primaries need a reboot anyway.
+- **A failed training leaves a WHEA "fatal hardware error" record (id 1) on the next boot.** We had eight, and every one sat on a boot where training fell back.
+  None came from a test crash. If you see id 1 with no core named after a memory change, look for the fallback signature below.
+- **A startup failsafe that imports a prepared SCEWIN script does nothing on fallback timings.** SCEWIN matches the prompt text, which holds the live value.
+  On fail-safe timings the live values differ from the prepared script, so the import reports "System configuration not modified".
+  Our fixed failsafe takes a fresh export at that moment and writes the wanted numbers into it.
 - **"ASRock Timing Optimization"** is on by default. It may rewrite timings left on Auto when you change one. Set every timing you care about explicitly.
 
 ## The tRFC 395 fallback signature
@@ -66,10 +74,11 @@ When training fails, this board falls back to safe timings and boots anyway. You
 
 - tRFC and tRFC2 at **395**,
 - tWR 54, tCL / tRCD / tRP 29,
-- a slow boot: 135 to 282 s instead of about 45 s.
+- a slow boot: about 100 to 600 s instead of about 45 s.
 
-We saw it at tRFC 630, tCL 36 and tWRRD_sg 64. The last one also showed tRAS 57, TX 1.100 V and tWRRD 42 / 54.
+We saw it at tRFC 630, tCL 36 (first try), tWRRD_sg 64 (first try), tWRRD_dg 44, tRDWR 18, Command Rate 1N and tRFCpb 400. The last one also showed tRAS 57, TX 1.100 V and tWRRD 42 / 54.
 A plain "the BIOS changed my value" (tWTR, tRTP) changes only the value you set and boots at normal speed.
+A slow boot with no fallback values is not a training problem. Ours were Windows shutdown hangs (see 0x9F below).
 That is how our script tells NO TRAIN from NOT APPLIED: did values we did not touch change?
 
 The same fail-safe values showed up after the no-POST, at DDR5-3600. The difference is how you get there.
@@ -77,16 +86,17 @@ A NO TRAIN boots by itself after a few minutes. A NO POST sits there until someo
 
 ## A no-POST from one tertiary: tRDRD_sg 14
 
-- tRDRD_sg 15 passed twice. tRDRD_sg 14 gave no picture at all. Trained is 16.
+- tRDRD_sg 15 passed twice. tRDRD_sg 14 gave no picture at all. Trained is 16. 15 is in the final set, and so is tWRWR_sg 15.
 - tRDRD_sg tracks the DRAM's tCCD_L, about 5 ns, which is 21 clocks at 8400. The trained 16 is already far below that ([Pakhtunov](https://pakt.cc/en/ddr5/timings/)).
 - The _sg timings give little performance next to the _dg ones (Arni90, OCN-INTEL post 1), and they are reported as heat-sensitive on M-die.
-- So we went back to the trained value and dropped tWRWR_sg from the plan. Poor trade: almost no gain, and the only step all week that needed five power cycles.
+- So we went back to the trained value at the time and dropped tWRWR_sg from the plan. Both came back on 14 and 15 November, one clock each, and passed. The gain is too small to measure.
 - First suspects for no-POST and training loops in the same guide are VDD2, TX and SA. We had just lowered TX to 1.30 V, so we put it back to 1.35 V. We did not prove that was the cause.
 
 ## tRFCpb is worth a look
 
 - The board's Auto was 796 clocks, which is 189.5 ns: the JEDEC value for this die size. Research was not sure this BIOS uses the timing at all.
 - 560, 460, 440 and 420 (100 ns) all passed. Latency dropped by about 1.5 ns at the first step, more than any other single step.
+- 400 trained, then Windows blue-screened (MEMORY_MANAGEMENT) under a minute into startup. 420 is the floor here.
 - One owner of three 24 Gb M-die kits runs 100 ns for tRFCpb and 155 ns for tRFC2 (OCN-INTEL post 32731). Our 420 and 660 are close to that.
 
 ## DIMM temperature limits for 24 Gb M-die
@@ -98,17 +108,33 @@ A NO TRAIN boots by itself after a few minutes. A NO POST sits there until someo
 | OCN-LIGHT page 6 | keep 2x24 kits below 49 C at full load |
 | OCN-LIGHT page 54 | "don't like going over 42c if i want tight timings" |
 
-Ours: 63.5 / 65.8 C steady peak without airflow, about 52 / 57.5 C with a 120 mm fan at DIMM 1.45 V, about 53 / 59 C at 1.50 V.
-The fan is worth 11 to 12 C on the cooler stick and 8 to 9 C on the hotter one.
+Ours: 63.5 / 65.8 C steady peak without airflow, about 52 / 57.5 C with a 120 mm fan at DIMM 1.45 V, about 53 / 59 C at 1.50 V in y-cruncher, up to 62 C in TestMem5.
+The fan is worth 11 to 12 C on the cooler stick and 8 to 9 C on the hotter one. The two sticks run 6 to 9 C apart.
 
 What we measured against those limits:
 
-- tREFI 65535 failed once at 54 C. That was on a marginal base (tCL 38 at 1.45 V). On a stable base it passed twice at 52 / 57.5 C.
-- tCL 38 at DIMM 1.50 / 1.48 V passed twice at 53 / 58.8 C.
-- So this kit runs settings above the published comfort zone in two 7-minute runs. That is not yet a daily-use proof.
-  The kit has a history of instability around 55 to 60 C in summer, at XMP.
+- tREFI 65535 passed about 60 short y-cruncher runs at up to 59 C, and two 60-minute y-cruncher runs. **It failed TestMem5 three times with the hotter stick at 59 to 61.5 C.**
+  tREFI 49151 failed too. 32767 passed four 60-minute TestMem5 runs at the same heat. See [results.md](results.md).
+- Looser tRFC and tRFCpb did not fix it. Only the refresh interval did. That fits the public advice: tREFI is the heat-sensitive timing.
+- tCL 38 at DIMM 1.50 / 1.48 V passed every test, up to 62 C.
+- The kit had a history of instability around 55 to 60 C in summer, at XMP. Our numbers say the same thing: about 60 C is where this kit's margins run out.
 
-A water block is planned; the expected result is DIMMs a few C above loop water, about 40 to 45 C under heat soak.
+A water block is planned; the expected result is DIMMs a few C above loop water, about 40 to 45 C under heat soak (Estimate).
+Gaming barely loads the RAM. Running a large AI model from system RAM is the realistic hot case.
+
+## Short runs and y-cruncher miss heat-bound refresh faults
+
+- y-cruncher (VT3, FFTv4, N63) found every access-timing fault within minutes. It did not find the tREFI fault in 60 minutes.
+- TestMem5 0.13.1 with the anta777 config found it in 16 to 50 minutes. It also runs the sticks about 3 C hotter than y-cruncher.
+- Our at-rest test (fill memory, leave it, check it) saw no flips at 65535 with the sticks around 50 C. It was never run at 60 C.
+- Run both kinds, long, at the temperature the sticks really reach.
+
+## tCL 36: it trained, and then it corrupted data
+
+- At DIMM 1.50 / 1.48 V, tCL 36 trained and booted. Then Windows failed to load: boot files failed their checksum (0xc0000221, then 0xc0000098), Windows Recovery twice, a firmware fallback to an old boot loader, and a blue screen at the desktop.
+- Afterwards the same files on disk checked clean, with valid signatures. They had been corrupted in RAM while loading.
+- The startup failsafe never ran, because Windows never got far enough. The owner set every timing to Auto in the BIOS.
+- At 1.45 V, tCL 36 had fallen back softly. "It fell back softly last time" did not predict the next attempt at a different voltage.
 
 ## DDR5 on-die ECC is invisible to WHEA
 
@@ -117,12 +143,15 @@ A water block is planned; the expected result is DIMMs a few C above loop water,
 - Every RAM failure in our sweep had **WHEA 0**. A clean WHEA log proves nothing about the DIMMs.
 - WHEA records on this platform point at the CPU side: cores, ring or the memory controller.
 
-## 0x9F shutdown hangs
+## 0x9F shutdown hangs, not slow training
 
-- Two reboots during the sweep hung for 6 to 7 minutes and ended in bugcheck 0x9F DRIVER_POWER_STATE_FAILURE (a driver holding a power request).
-- Cause not identified. They were at shutdown, not in a test.
-- We first suspected one of them made the tRFC 630 boot look like a training failure. The same tRFC 395 fallback at tCL 36 later confirmed tRFC 630 was a real training failure.
-- Fix for the sweep: crash dumps off and automatic restart on, so a hang ends in a reboot instead of a long dump write on unstable RAM.
+- During the sweep many reboots took 323 to 353 s instead of about 45. We read them as "slow memory training when hot", built a rule on it, and dropped or flagged values for it. **That was wrong.**
+- With crash dumps back on, a slow reboot left bugcheck 0x9F DRIVER_POWER_STATE_FAILURE, parameter 1 = 3: a device held a power request too long while Windows shut down. Windows hung until its watchdog rebooted it.
+  That is why every slow boot had the same length: a fixed timeout, not a retry of training.
+- All three 0x9F dumps carry the same device stack: the NVIDIA driver on the RTX 5090.
+- Every hang lined up with a large local model server (about 31 GB of GPU memory) being torn down mid-shutdown. Since the model server is closed before scripted restarts, no restart has hung.
+- How to tell them apart: a real training failure shows the fallback values above. A shutdown hang shows the values you set, a bugcheck 0x9F record, and an unusually long gap between shutdown and the next start.
+- For a sweep: close GPU-heavy programs before a scripted restart, and keep small crash dumps on, so a slow boot has a stop code you can read.
 
 ## DIMM sensors read 0 after a cold boot
 

@@ -105,3 +105,12 @@ Our rule now: find the floor with short runs, then validate with 3 x 30 minutes 
 Ring 51x passed our memory stress test four times out of four (two runs at each of two voltages).
 It crashed Cinebench with GPU heat both times, at 2:24 and 4:13.
 If a CPU-side change rides along in a RAM sweep, give it the CPU test too. The memory test alone would have kept a ring ratio that cannot hold an all-core load.
+
+## Load rules since 14 November
+
+After a hard reset at 459 W under a memory test, the owner set these, and every script follows them:
+
+- No GPU heat in memory tests. GPU heat only in the CPU test, where it belongs.
+- The scripts end a load when the hottest core reaches 100 C (Intel's rating for this CPU). The BIOS Tj Max stays at 115 C.
+- CPU items that failed partly under heat (58x all-core, ring 51) are re-tested after the repaste with the same test as before: two memory runs, then 10 minutes of Cinebench with GPU heat.
+  Vcore goes up only in 10 mV steps, to 1.360 V at most.

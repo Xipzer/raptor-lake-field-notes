@@ -11,7 +11,10 @@ In the BIOS, confirmed by a SCEWIN export.
 - Proof for 57x / 1.340 V (with E 45x): 3 x 30 minutes of Cinebench plus GPU heat, back to back, 0 errors. Scores 9,880 / 9,875 / 9,877.
   Water 37.6 to 39.5 C, package 413 to 418 W, hottest core P7 at 103 / 105 / 106 C (Tj Max is 115 C here, no throttling).
 - Cost against 59x: 3.4% clock. Measured all-core cost of 58x to 57x: about 0.7% in Cinebench. Games: estimate 0 to 3%, depending on how CPU-bound they are.
-- E-cores 46x has passed 10 minutes with GPU heat so far, not 30. The 30-minute run is part of the final validation, which has not run yet.
+- E-cores 46x: 10 minutes with GPU heat on 13 November, then 30 minutes with GPU heat on 14 November (10,028.45, 0 errors, package 421 W, P7 106 C, water to 36.6 C).
+- One corrected error at this profile in about 28 hours: 13 November 23:05, internal parity error on P4's second thread, at light load two minutes after a fallback-training boot. P4 is a known weak core.
+
+**Status 15 November, morning:** the liquid metal was redone on 14 November (see [thermals.md](thermals.md)). The CPU items that failed under heat are being re-tested. **In progress.**
 
 ## E-cores and ring (13 November)
 
@@ -24,16 +27,41 @@ Each step had to pass two 7-minute y-cruncher memory runs and then 10 minutes of
 | E-cores 47x | **FREEZE** | Hard freeze about 3 minutes into the first memory run. No blue screen, no WHEA record, only an unclean-shutdown event. The owner held the power button |
 | Ring 51x at 1.340 V | **FAIL** | Both memory runs clean (71.1 / 71.7 ns). Cinebench with GPU heat crashed at 2:24, no WHEA record, P7 at 101 C |
 | Ring 51x at 1.350 V | **FAIL** | Both memory runs clean (70.3 / 70.6 ns). Cinebench with GPU heat crashed at 4:13, no WHEA record, P7 at 106 C, package 429 W |
+| Ring 51x at 1.360 V (14 Nov) | **FAIL** | Both memory runs clean. Cinebench with GPU heat crashed at 3:35, no WHEA record, P7 at 105 C, package 428 W |
 | Ring 52x, E-cores 48x | not tested | |
 
 Verdicts:
 
 - **E-cores stay at 46x.** 47x did not fail a test, it froze the machine. That is a harder kind of failure than the research guessed (see [../ram/predictions.md](../ram/predictions.md)).
-- **The ring stays at 50x.** 10 mV more bought under 2 minutes, and more voltage means more than 106 C on P7.
+- **The ring stays at 50x.** 1.340 V lasted 2:24, 1.350 V 4:13, 1.360 V 3:35. More voltage did not help within the owner's ceiling. A re-test after the repaste is queued.
   Ring 51 passed the memory test twice at both voltages. Its latency gain was about 0.3 ns at most, which is inside run-to-run noise.
   It only failed under Cinebench with the GPU heating the loop. A memory test alone would have kept it.
 - Score: 10,059.55 against 9,884.75 for the like-for-like 10-minute run at E 45x on 12 November. That is +1.8%.
   The E 46x run also had the tuned RAM under it, so we cannot say how much is E-cores and how much is RAM.
+
+## 14 November: the hard reset under a memory test
+
+During an at-rest memory test with y-cruncher on all threads and GPU heat beside it, the PC hard-reset 5 minutes in.
+The owner's photo just before: package 459 W, P6 107 C, P4 106 C, P7 105 C, water 35.8 C, GPU 536 W.
+
+- No stop code with crash dumps on, no WHEA record, the memory checks clean twice before it. So a CPU or platform fault under heat, not memory.
+- y-cruncher drew about 45 W more than the Cinebench runs that validated 57x / 1.340 V. The cores were about 5 C beyond anything validated.
+- An earlier reset 25 minutes into a 60-minute y-cruncher run had the same signature. It is probably the same thing.
+- After this the owner asked for sensible loading: no GPU heat in memory tests, the CPU kept cool, and a script stop at 100 C on the hottest core. Tj Max stays at 115 C in the BIOS.
+
+## After the repaste (15 November, in progress)
+
+Same test as before: two memory runs, then 10 minutes of Cinebench with GPU heat.
+
+| Step | Outcome | What happened |
+|---|---|---|
+| 58x all-core at 1.340 V | **FAIL** | Both memory runs clean. Cinebench crashed at 2:11 with code 0xC0000096 (privileged instruction). One corrected error, on P6. Hottest core P3 at only 92 C, water 31.8 to 35.4 C. So not heat |
+| 58x all-core at 1.350 V | in progress | |
+| 58x all-core at 1.360 V | queued | Only if 1.350 V fails. 1.360 V is the owner's ceiling |
+| Ring 51x | queued | Same ladder |
+
+Before the repaste, 58x at 1.340 V failed on P2, then P4, then P5 in turn. After it, the cores run about 10 C cooler at the same power and 58x still fails at 1.340 V, now on P6.
+So for 58x the limit at this voltage is the silicon, not the heat (Estimate, from one run).
 
 ## Per-core failure map
 
@@ -113,13 +141,16 @@ Errors are corrected CPU errors (WHEA).
 | 13 Nov 10:31 | 57x, E 45x, **ring 51x**, 1.340 V, GPU heat | 10 | FAIL | crashed at 2:24, no WHEA | | 0 | | P7 101 C | 31.1 to 34.4 | 414 | 534 |
 | 10:52 | 57x, **E 46x**, ring 50x, 1.340 V, GPU heat | 10 | PASS | | 10,059.55 | 0 | | P7 105 C | 31.4 to 37.1 | 417 | 534 |
 | 15:17 | 57x, E 46x, **ring 51x, 1.350 V**, GPU heat | 10 | FAIL | crashed at 4:13, no WHEA | | 0 | | P7 106 C | 32.0 to 36.4 | 429 | 533 |
+| 14 Nov, about 00:37 | 57x, E 46x, **ring 51x, 1.360 V**, GPU heat | 10 | FAIL | crashed at 3:35, no WHEA | | 0 | | P7 105 C | 30.8 to 35.1 | 428 | |
+| 14 Nov, about 06:46 | 57x, E 46x, ring 50x, 1.340 V, GPU heat (validation) | 30 | PASS | | 10,028.45 | 0 | | P7 106 C | 31.5 to 36.6 | 421 | |
+| 15 Nov, about 07:00 (after the repaste) | **58x all**, E 46x, 1.340 V, GPU heat | 10 | FAIL | ended with code 0xC0000096 at 2:11 | | 1 | P6 | P3 92 C | 31.8 to 35.4 | | |
 
 Notes on individual runs:
 
 - 04:27: the GPU heat in use was an early pixel-shader build that drew only about 117 W and stole CPU time. Treat the GPU column for 04:27 to 04:34 with care.
 - 04:34: holding P2 out did not save 59x at ring 45x. Ring 45x did not help at all.
 - 05:00: GPU heat was switched off part way, so this pass is milder than the 1.360 V fail at 05:36.
-- 13 November rows: the RAM under these runs was the tuned set of that hour, not XMP. See [../ram/results.md](../ram/results.md).
+- 13 to 15 November rows: the RAM under these runs was the tuned set of that hour, not XMP. See [../ram/results.md](../ram/results.md).
   E-cores 47x has no ledger row: it froze in the memory test before Cinebench started.
 - 05:12: package power was about the same as at 1.360 V, so at the time we could not confirm A-Tuning had applied 1.340 V. Later screen captures confirmed each A-Tuning step.
 

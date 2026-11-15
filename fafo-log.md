@@ -2,7 +2,7 @@
 
 What we tried, what broke, and what we learned, in order. Our own mistakes are included. Times are local, November 2026.
 Where a later finding overturned an earlier entry, the entry is corrected in place and the correction is listed under
-"Corrections of our own errors" near the end. Status: 13 November 2026, late afternoon. The RAM sweep is still running.
+"Corrections of our own errors" near the end. Status: 15 November 2026, morning. The RAM tune is done; CPU re-tests after the repaste are in progress.
 
 ## Before tuning
 
@@ -121,7 +121,67 @@ It found errors (a) to (h) below. Then the sweep went on:
 - **Tried:** tRRD_L 11. **Passed.** Predicted to crash at boot.
 - **Tried:** tWR 22, 20. **Passed.** tRTP still reads 23.
 - **Tried:** tRTP 19. **NOT APPLIED:** it read back 18. An explicit tRTP reads back one lower than entered, the same as 20 giving 19 a day earlier.
-- tRAS 72 under test at the time of writing (17:00, run 1 of 2 passed). Queued: retries of tRCD/tRP 48 and tRRD_L 10, then the final validation.
+- **Tried:** tRAS 72, 68, 64. **Passed**, all three. 68 and 64 sit below the tRCD + tRTP "floor". **Learned:** the floor is where tRAS stops mattering, not where it breaks.
+
+## 13 November, evening: tRTP, and the old crashes again
+
+- **Found:** our checker had marked tRTP as NOT APPLIED because the BIOS shows an entered tRTP minus 1. Fixed the checker. **Tried:** tRTP 20, 16, 13 entered (19, 15, 12 shown). **Passed**, all three. tRTP is at the DRAM minimum.
+- **Tried:** tRCD/tRP 48 again, one clock from a good base. **Broke:** startup crash loop, three blue screens. The failsafe never ran, because Windows died before the task got two starts. The owner set 49 in the BIOS.
+- **Tried:** tRRD_L 10 again. **Broke:** startup crash loop. This time the failsafe recovered it unattended. **Learned:** both old crashes were real.
+- Coverage audit from the other machine's agent: every setting either tested to its limit or ruled out with a reason. Accepted.
+- **Tried:** tWR 18, 16; tWRRD_dg 46; tWRRD_sg 68, 66, 64. **Passed.** tWRRD_dg 44: no train. tWRRD_sg 62: failed at once.
+- **Mistake:** after tWRRD_sg 62 failed, the sweep wrote tCL 36 from that failing session and rebooted. **Broke:** tCL 36 trained, then corrupted memory: boot files failed their checksums, Windows Recovery twice, a blue screen.
+  The files on disk were intact. The owner set every timing to Auto. **Learned:** after a failure, restore, reboot and confirm before anything else. And "it fell back softly last time" predicts nothing.
+
+## 13 to 14 November, night
+
+- **Tried:** tRP 48 alone. **Passed** on a clean re-test. So tRCD is the weak one of the pair.
+- **Tried:** tRDWR 18 (pair, then each alone), Command Rate 1N. **No train**, all recovered unattended.
+- **Tried:** tRCDW 44, 40; tRDRD_sg 15. **Passed.**
+- **Tried:** ring 51x at 1.360 V. **Broke:** Cinebench with GPU heat at 3:35. Three voltages, three crashes. The ring is final at 50.
+- **Tried:** tREFI 98304 (passed), 131071. **Broke:** blue screen BAD_POOL_CALLER in run 2.
+- **Tried:** tRFC 650. **Broke:** test error in run 2. A control of the base passed, so the fail was real.
+- **Tried:** tRFCpb 400. **Broke:** blue screen at startup, then two fallback boots.
+- **Found:** the failsafe did nothing on fallback timings (SCEWIN matches prompts by the live value). Wrote failsafe v2 and tested it live.
+- **Mistake:** we had built a rule that a slow boot (about 350 s) after a hot test meant marginal training, and dropped or flagged values for it. See correction (k).
+- **Mistake:** a step card told the owner to put Vcore "back to Auto". On this board that is adaptive voltage, far above his ceiling. Caught by the other agent before it mattered.
+
+## 14 November: long validations, a reset, and the real cause of the slow boots
+
+- **Broke:** the first 60-minute y-cruncher run reset the PC 25 minutes in. **Mistake:** our validation script restarted the 60 minutes after the reboot without noticing. Gave back tREFI 98304 to 65535.
+- **Mistake:** we had stacked about 25 kept changes on 16-minute tests. The first long run could blame any of them.
+- **Passed:** y-cruncher 60 minutes, Cinebench 30 minutes with GPU heat (10,028.45), five hot reboots.
+- **Mistake:** we added GPU heat to an all-thread at-rest memory test. **Broke:** hard reset at 459 W, P6 107 C. The heaviest CPU load of the whole campaign, in a test meant for the RAM. No stop code, no WHEA: CPU or platform, not memory.
+  The owner asked for sensible loading from then on: no GPU heat, the CPU kept cool, a stop at 100 C.
+- **Found:** with crash dumps on, the slow hot reboot left bugcheck 0x9F. The "slow training" was Windows hanging at shutdown in the graphics driver, while a large local model server was torn down. Every boot-time verdict was voided.
+- **Found (WHEA audit):** eight "fatal hardware error" records over two days, each on a boot where training had fallen back. None on a test crash. Plus one corrected parity error on P4 at the daily CPU profile.
+- **Mistake:** the guard checks for the new memory track ran "E-cores only" y-cruncher on all 32 threads, twice: once at 430 W and 95 C for about 100 s, once at 368 W. y-cruncher.exe is a launcher, the worker ignored the mask. Fixed by masking the worker and holding the mask for 20 s.
+- **Passed:** at-rest 45 minutes and y-cruncher 60 minutes on tREFI 65535, CPU cool.
+- **Broke:** TestMem5 "Error in test 0" at 50 minutes, hotter stick at 60 C (DIMM fan unplugged).
+- **Mistake:** the step-back to tRFC 688 / tRFCpb 460 was written as three fields. Our writer filled the rest from a golden script, which put every other timing back to XMP. Caught by read-back before any reboot. Rewrote the full set.
+- **Mistake:** a TestMem5 run started a minute after the previous one covered only 40% of memory. Stopped and restarted.
+- **Mistake:** we called a TestMem5 program error at 9 minutes "not a memory result" because it came after we moved TM5's cores. Later the same kind of error came with no move. See correction (n).
+
+## 14 November, evening: the repaste
+
+- The owner redid the CPU liquid metal (planned power-off, marked as such). The old metal, only 3 to 4 days old, was a matt crust over the P-core area.
+- **Mistake:** we first said the old metal was months old. It was from a job a few days earlier, already in our own journal.
+- **Measured:** same 100-second all-core load, about 16 C per 100 W above water before, about 13 after. P-core spread 19 to 11 C.
+- **Mistake:** photos sent from the other machine were of Printer's CPU. We took them for Projector's and said "your temperatures already show it worked", with no Printer data looked at. Corrected to the owner.
+
+## 14 to 15 November, night: the refresh interval
+
+- **Broke:** TestMem5 at tRFC 688 / tRFCpb 460 on tREFI 65535, at 61.5 C. **Learned:** looser refresh times did not cure it.
+- **Tried:** tREFI 32767. **Passed** TestMem5 60 minutes at the same heat. **Mistake:** our parser logged it as FAIL, because TestMem5 0.13.1 writes only "Testing completed" on a pass.
+- **Tried:** tRFC back to 660, then tRFCpb back to 420, on tREFI 32767. **Passed**, 60 minutes each.
+- **Tried:** tREFI 49151. **Broke:** TestMem5 program error at 14 minutes, 61.5 C. Counted as a fail.
+- **Tried:** tRP 47, 46; tRCDW 36, 32; tWR 14, 12; tCWL 34; tWRWR_sg 15. **Passed**, one short run each.
+- **Passed:** the final validation: at-rest 45 minutes, y-cruncher 60 minutes, TestMem5 60 minutes (hotter stick up to 62 C).
+
+## 15 November, morning: CPU re-tests (in progress)
+
+- **Tried:** 58x all-core at 1.340 V after the repaste. **Broke:** Cinebench with GPU heat at 2:11, one corrected error on P6, hottest core only 92 C. Cooler cores did not buy the bin.
+- 1.350 V and 1.360 V are being tried now, then ring 51.
 
 ## Corrections of our own errors
 
@@ -137,6 +197,15 @@ Things we wrote down as facts or results and later found to be wrong. Each is fi
 | (f) | "The DIMM fan dropped peaks by 10 to 15 C, to 45 / 50 C." and "the fan was moved at 14:28" | 45 / 50 C was a cold-start reading. Steady benefit is 11 to 12 C on the cooler stick and 8 to 9 C on the hotter: 63.5 / 65.8 C without, about 52 / 57.5 C with, at 1.45 V (about 53 / 59 C at 1.50 V). Nothing moved at 14:28. The fan has sat in one place since it went in | Compared steady peaks. The owner corrected the fan note |
 | (g) | "Could not write E-core ratio 47 (could not read the BIOS)" | A race in our own tooling. The reader did not wait for the helper to finish its result file | Nothing had been written. The reader now waits for the closing line |
 | (h) | (caught before it ran) | The final-benchmark script would have set E-cores to 0 for the "original profile" run, and could loop if that profile crashed | Code review during the audit |
+
+| (i) | "tRAS below tRCD + tRTP will fail" | tRAS 68 and 64 passed below it. It only stops mattering there | Ran it |
+| (j) | "tRDRD_sg 15, tWRRD_sg 64 and 66, tRP 48 train slowly when hot" | Their slow first boots were shutdown hangs. All are fine or in the final set | The 0x9F finding |
+| (k) | "Slow hot boots (323 to 353 s) are slow memory training" | Windows shutdown hangs, bugcheck 0x9F, in the NVIDIA driver while a large model server was torn down. A fixed timeout, hence the same length every time | Crash dumps back on; the device stack in the dumps |
+| (l) | "The 04:39 reset was a refresh fault" | Probably CPU heat under y-cruncher (same signature as the 08:14 hard reset) | The hard reset with dumps on and no stop code |
+| (m) | "TestMem5 FAIL" on tREFI 32767 | A clean 60-minute pass. Our parser expected wording TM5 0.13.1 does not write | Read the log by hand |
+| (n) | "A TM5 program error is not a memory result" | On unstable settings it is most likely memory corruption. Counted as FAIL | The same error came with no core move |
+| (o) | "The old liquid metal had dried over months" | It was 3 to 4 days old, most likely oxidised metal from the syringe | The owner; our own journal |
+| (p) | "Your repaste photos show it worked" | The photos were of the other machine's CPU, and no temperature data had been looked at | The owner |
 
 Earlier ones, already described above: the XMP baseline logged as FAIL (a text match on "Stop on Error"); the tRFC 630 no-train suspected to be a shutdown hang (it was a real training failure).
 
@@ -160,3 +229,10 @@ Two of these did damage beyond the notes:
 11. A rule you derived from one observation is a guess. We built a floor and a prediction on "tRTP follows tWR" before reading tRTP once.
 12. A CPU-side change needs the CPU test. Ring 51 passed the memory test four times and failed Cinebench twice.
 13. When someone asks for an audit, diff everything against the baseline. Ours found a timing that had been moving for eleven hours without our knowing.
+14. Test RAM at the temperature real use reaches, with a test that heats the sticks. Our refresh fault needed TestMem5 at about 60 C; y-cruncher and short runs never saw it.
+15. Keep the CPU out of a RAM test. A crash under a 459 W memory test is a CPU result, not a RAM one.
+16. Fix the thing that is heat-sensitive. Looser tRFC did nothing for a tREFI fault.
+17. A fixed-length delay is a timeout, not a retry. Turn crash dumps on and read the stop code before you explain a slow boot.
+18. Short runs to search, long runs at checkpoints. Stacking 25 changes on short runs makes the first long failure uninterpretable.
+19. Write the full set every time, and read it back before you reboot.
+20. Liquid metal does not dry, it alloys. A crust a few days after the job means the job, not the metal's age.

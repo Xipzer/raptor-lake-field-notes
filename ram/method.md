@@ -32,7 +32,7 @@ Risk: writing the wrong variable can stop the board booting. This board has a Cl
 | Linux user services (WSL, systemd, linger) | The sweep controller starts at boot by itself |
 | Failsafe startup task (SYSTEM, at startup) | If a step's boot repeats without its test starting, it imports the last good settings and reboots |
 | Windows recovery disabled | `bcdedit` with `recoveryenabled No` and `bootstatuspolicy IgnoreAllFailures`, so a crash loop retries instead of stopping in Windows Recovery |
-| Crash dumps off during the sweep | A bugcheck reboots straight away, instead of hanging while writing a dump from unstable RAM |
+| Crash dumps off during the sweep | A bugcheck reboots straight away, instead of hanging while writing a dump from unstable RAM. Later turned back to small dumps: with dumps off we misread shutdown hangs as slow training for two days |
 | Crash check on every step | Looks for unclean-shutdown events since the step was set. A hit means CRASH, and the last good settings go back |
 | Boot Failure Guard (BIOS) | After 4 failed boots the BIOS steps in. On this board it did not load defaults. See section 8 |
 | An external watcher | Another machine alerts if this one stays unreachable for 3 minutes outside expected reboot windows |
@@ -51,7 +51,8 @@ Keep a restore list as you go.
    - values as written: run the test,
    - the BIOS changed our value but nothing else: **NOT APPLIED**,
    - values we did not touch changed too (fallback timings): **NO TRAIN**.
-   Boot time is measured too. A trained boot takes about 45 s. A failed training took 135 to 282 s.
+   Boot time is measured too. A trained boot takes about 45 s, a reboot with no BIOS change about 20 s.
+   A long boot with the fallback values is a failed training. A long boot with your own values is probably a shutdown hang: check for a 0x9F record before you conclude anything.
 4. Measure latency and bandwidth (`memlat`: our own pointer-chase latency plus read bandwidth).
 5. Stress: y-cruncher 0.8.7, tests FFTv4, N63 and VT3, 7 minutes, 30 GB.
 6. Check the WHEA log for new records.
@@ -131,11 +132,10 @@ Rules that came with it:
 - **One clock at a time near a known failure.** The old crashes came from two-clock jumps. The single steps before them passed.
 - **Steps that can stop training wait for a person.** After the no-POST, the sweep ran those only while the owner had said he was around.
 - **Raise a CPU-side memory voltage only for a new training failure.** After the no-POST we put TX back from 1.30 to 1.35 V for training margin. Both are inside the daily range.
-- **Leave tRDRD_sg and tWRWR_sg trained.** Little gain, heat-sensitive, and the one step that gave us a no-POST.
+- **Leave tRDRD_sg and tWRWR_sg trained.** Little gain, heat-sensitive, and the one step that gave us a no-POST. (Reversed on 14 and 15 November: both went to 15, one clock each, with the owner around.)
 - **Read back coupled timings after every change.** See the tWTR, tRTP and tRAS entries in [quirks.md](quirks.md). We got all three wrong at first.
 
-Final validation, still to run: y-cruncher for 60 minutes, Cinebench for 30 minutes with GPU heat, three retrain boots,
-then before and after benchmarks. A two-run pass in a sweep finds candidates. It does not make a daily profile.
+A two-run pass in a sweep finds candidates. It does not make a daily profile. What the long checks found is in sections 10 and 11.
 
 ## 8. What unattended operation cannot do
 
@@ -173,3 +173,36 @@ What follows from that:
 We ran these after every crash, the no-POST and the freeze. They were clean each time.
 The only repair was on the very first `sfc` run: 62 Start Menu shortcut files, no system binaries, nothing unrepairable.
 That is a relief, not a guarantee. Unstable RAM can corrupt data that no checker looks at.
+
+## 10. What changed in the sweep on 13 and 14 November
+
+Faults found in our own sweep, and the fixes:
+
+- **After a FAIL the next step was written from the failing session,** on top of the failing values. That is how tCL 36 went in straight after tWRRD_sg 62 had failed.
+  Now every failure gets: restore, reboot, confirm by export, and only then the next step.
+- **The failsafe could not restore from fallback timings** (see [quirks.md](quirks.md)). Failsafe v2 takes a fresh export at that moment, writes the wanted numbers into it, flushes its marker and log to disk, and counts starts instead of comparing names.
+  It was tested live: a wrong value stored on purpose was put back unattended.
+- **It still cannot help** when Windows dies before the task has run twice. tRCD/tRP 48 and tCL 36 did exactly that. Those steps need a person.
+- **A step card before every risky reboot.** It goes to the other machine and says what was set, what the owner may see, and the one BIOS field that undoes it.
+  A bug in the cards once said "Vcore back to Auto", which on this board means adaptive voltage far above the owner's ceiling. Cards now name the exact number.
+- **The slow-boot rule measured the wrong thing.** It treated a long boot as a slow training. The long boots were shutdown hangs. Every verdict built on boot time was voided and re-tested.
+
+## 11. Long checks, and how we run them now
+
+The first long validation (14 November) crashed 25 minutes into a 60-minute y-cruncher run, and our script started the 60 minutes again without noticing.
+Later that day an at-rest memory test with GPU heat beside it hard-reset the PC at 459 W. Both taught us something about the method:
+
+1. **Keep the CPU out of a RAM test.** An all-thread memory test with the GPU heating the loop was the heaviest CPU load of the whole campaign. A crash there tells you nothing about the RAM.
+   Now: no GPU heat, the load confined to the E-cores and the cooler P-cores, and a guard that ends the load at 100 C on the hottest core (twice in a row, or 104 C once).
+2. **Three kinds of memory test, because they find different faults:**
+   - an **at-rest test**: fill 30 GiB with patterns, lock it in physical memory, leave it untouched, and check it every 2 minutes for 45 minutes, with y-cruncher in 8 GB beside it. A flip in held data points straight at refresh. The re-read flushes the cache line first, so a wrong value really stored is told apart from a bad read;
+   - **y-cruncher** VT3 / FFTv4 / N63, 60 minutes;
+   - **TestMem5 0.13.1**, anta777 config, 60 minutes. This one found the tREFI fault the other two missed.
+3. **A failed test gives back one setting and repeats only that test.** Passed phases are not re-run after loosening.
+4. **Short single runs to search, long runs at checkpoints.** We once stacked about 25 kept changes on 16-minute tests, so the first long run implicated all of them.
+   On 15 November the last eight probes ran one 8-minute run each, and the final validation confirmed the lot.
+5. **Count every hardware record over the whole validation,** not only inside each test window.
+6. **Write a pre-registered reading** before a test whose result you want to interpret, so you cannot fit the story afterwards.
+
+Final validation on 15 November: at-rest 45 minutes, y-cruncher 60 minutes, TestMem5 60 minutes, all clean. See [results.md](results.md).
+Cinebench 30 minutes with GPU heat and five hot reboots passed on 14 November, on the set of that day (tREFI 65535, tRP 48, tWR 16).
