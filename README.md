@@ -158,6 +158,16 @@ The latency meter is ours. It is not AIDA64 and the numbers do not compare with 
    tCL 36 (it corrupted memory at boot at 1.50 V, so it likely needs more voltage, not only cooling); then the combined CPU and RAM sign-off, moved here by the owner.
 2. Printer: the same RAM and CPU method.
 
+## Suite
+
+| Repo | What it is |
+|---|---|
+| [overclock-autopilot](https://github.com/Xipzer/overclock-autopilot) | Generic core: test engine, safety rails, run ledger |
+| [raptor-lake-overclock-autopilot](https://github.com/Xipzer/raptor-lake-overclock-autopilot) | Intel 13th and 14th gen CPU and DDR5 edition, built from these notes |
+| [blackwell-overclock-autopilot](https://github.com/Xipzer/blackwell-overclock-autopilot) | NVIDIA RTX 50 edition: per-voltage GPU clock search |
+| [blackwell-field-notes](https://github.com/Xipzer/blackwell-field-notes) | The GPU side of the same machine: RTX 5090 data and lessons |
+| [blackout-tray](https://github.com/Xipzer/blackout-tray) | Tray app for fans, RGB and screens |
+
 ## Licence
 
 The text in this repository is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). See [LICENSE.md](LICENSE.md).
