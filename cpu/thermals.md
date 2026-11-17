@@ -67,7 +67,7 @@ The fans only reached 65% during validation because the curve was capped at 80% 
   That makes one bin worth roughly 29 C of margin at fixed voltage
   ([source](https://skatterbencher.com/2022/12/04/skatterbencher-49-intel-core-i9-13900k-overclocked-to-6100mhz/)).
   Our P2 numbers (about 4 mV per C) are steeper than that. Your chip will differ again.
-- Cooling helps, but on its own it will not buy a full ratio bin.
+- Cooling helps, but on its own it will not buy a full ratio bin. Our repaste took about 10 C off the hottest core: worth 20 mV at 57x, not 58x.
 
 ## The repaste (14 November)
 
@@ -89,6 +89,17 @@ Same load before and after: y-cruncher on all 32 threads for 100 seconds (Measur
 | P-core spread | 19 C (heat-soaked, Cinebench) | 11 C (P6 72 to P3 83 C) |
 
 The hot spot moved from P6 / P7 to P3 / P5 / P7. The "after" runs are short, not heat-soaked, so this is a like-for-like short-load comparison only. A re-check in about a week is planned.
+
+Heat-soaked, the next day (Measured): the same 30-minute test at 57x, ring 50x, E-cores 46x, Cinebench with GPU heat:
+
+| | Vcore | Package | Hottest core | Water max |
+|---|---|---|---|---|
+| Before the repaste (14 Nov) | 1.340 V | 421 W | P7 106 C | 36.6 C |
+| After (15 Nov) | 1.340 V | 411 W | P3 96 C | 39.2 C |
+| After (15 Nov) | 1.320 V | 401 W | P3 94 C | 39.9 C |
+
+About 10 C cooler on water about 3 C warmer, and 10 W less at the same voltage (cooler silicon leaks less).
+That bought 20 mV: the 30-minute voltage floor at 57x moved from 1.340 V to 1.320 V. It did not buy a ratio bin: 58x still fails at 1.360 V. See [results.md](results.md).
 
 ### What liquid metal actually does over time
 

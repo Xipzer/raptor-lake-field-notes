@@ -80,6 +80,9 @@ The real floor at this heat was about 30 mV above the 10-minute floor. Reasons, 
 
 Our rule now: find the floor with short runs, then validate with 3 x 30 minutes back to back, hot, and add margin above the voltage that passed.
 
+After the repaste we went further and ran every voltage step for 30 minutes. Good thing: a per-core 58x mix that passed 10 minutes at 1.340 V crashed at 7:29 in the 30-minute run.
+The final 1.320 V got two 30-minute passes and has 10 mV of margin over a 30-minute failure (1.310 V). That is less margin than the rule above asks for, and it was the owner's choice.
+
 ## Control runs and order
 
 - One change per run. Ratios and voltage are never changed together.

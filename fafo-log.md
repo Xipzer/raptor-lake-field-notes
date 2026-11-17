@@ -2,7 +2,7 @@
 
 What we tried, what broke, and what we learned, in order. Our own mistakes are included. Times are local, November 2026.
 Where a later finding overturned an earlier entry, the entry is corrected in place and the correction is listed under
-"Corrections of our own errors" near the end. Status: 15 November 2026, morning. The RAM tune is done; CPU re-tests after the repaste are in progress.
+"Corrections of our own errors" near the end. Status: 17 November 2026. The campaign is finished, except the DIMM water-block re-runs.
 
 ## Before tuning
 
@@ -178,10 +178,40 @@ It found errors (a) to (h) below. Then the sweep went on:
 - **Tried:** tRP 47, 46; tRCDW 36, 32; tWR 14, 12; tCWL 34; tWRWR_sg 15. **Passed**, one short run each.
 - **Passed:** the final validation: at-rest 45 minutes, y-cruncher 60 minutes, TestMem5 60 minutes (hotter stick up to 62 C).
 
-## 15 November, morning: CPU re-tests (in progress)
+## 15 November: CPU re-tests after the repaste
 
-- **Tried:** 58x all-core at 1.340 V after the repaste. **Broke:** Cinebench with GPU heat at 2:11, one corrected error on P6, hottest core only 92 C. Cooler cores did not buy the bin.
-- 1.350 V and 1.360 V are being tried now, then ring 51.
+- **Tried:** 58x all-core at 1.340, 1.350, 1.360 V, 10 minutes of Cinebench with GPU heat each. **Broke:** at 2:11 (one corrected error on P6), 4:00 and 6:48. Cores only 92 to 96 C.
+  **Learned:** more voltage only delays the crash. 58x all-core is a silicon limit at or below the owner's 1.360 V ceiling.
+- **Tried:** per-core mix, 58 on P0 P1 P3 P7, 57 on the rest, 1.340 V. **Passed** 10 minutes (10,132.71).
+- **Tried:** ring 51 on that mix. **Broke:** 1.340 V at 8:31, 1.350 V at 2:15 (sooner with more voltage). **Passed:** 1.360 V, 10 minutes (10,220.45) and 30 minutes (10,178.10, P3 98 C, WHEA 0).
+  **Not kept:** 71.3 against 71.1 ns on our meter, about 0.9% in Cinebench, at the voltage ceiling. The owner chose ring 50 and less voltage.
+- **Tried:** the same mix at ring 50 / 1.340 V for 30 minutes. **Broke:** at 7:29, one corrected error on P3. **Learned:** the 10-minute pass was luck.
+- **Tried:** 58 on P0 P1 P7 only. **Broke:** finished 30 minutes, but one corrected error on P0.
+- **Tried:** 57x all-core, ring 50, 30 minutes each: 1.340, 1.330, 1.320, 1.310 V. **Passed** down to 1.320 V (10,151.53, 401 W, P3 94 C). **Broke:** 1.310 V, 2 corrected errors on P2.
+- **Passed:** a second 30-minute run at 1.320 V (10,179.94, P3 96 C, water to 40.1 C, WHEA 0). **Kept:** 57x, E-cores 46x, ring 50, 1.320 V, LLC 1.
+- **Learned:** before the repaste 1.330 V failed at 15 minutes and 1.320 V at 26 minutes with cores near 100 C or above. Cooler silicon lowered the floor by 20 mV. The owner called it before the runs.
+- **Checked:** `chkdsk /scan`, `sfc /scannow` and an ext4 check for the earlier power-button stop: all clean.
+- **Benchmarked:** final set against the original profile (59x, 1.360 V, XMP). Final: 71.2 ns, 128.1 GB/s, y-cruncher 2.5b 114.72 s, Cinebench multi 10,215.28, single 540.04.
+  Original: 74.1 ns, 126.4 GB/s, 117.75 s, single 553.7. **Broke:** Cinebench multi on the original profile stalled twice (30 minutes, then 6 minutes) with no result, and two corrected errors were logged right after it booted.
+- **Checked:** every corrected error (WHEA 19) that day, mapped to test windows. All seven sit in failing tests or in the original profile's boot. None on the final set.
+  **Mistake:** a count from the other machine said nine. Two of those were from earlier days.
+
+## 15 to 17 November: housekeeping
+
+- **Broke:** HWiNFO hung at GPU detection again. The Intel UHD 770 had fallen back to a 2024 board-specific driver package on 14 November, most likely set off by our driver clean-up that day.
+  Windows ranks the package that names the board's exact IDs above the newer generic one. HWiNFO 8.60 hangs inside that driver's Level Zero DLL.
+  **Fixed:** backed up the old package and removed it with `pnputil`. The newer driver took over and HWiNFO starts.
+- **Broke:** our fan tool lost the coolant reading while HWiNFO was open, and only got it back after a restart.
+  Both programs had the same USB HID hub open. Windows hands every open handle a copy of each input report, so HWiNFO's replies queued up in our tool's handle and it kept reading stale ones.
+  **Fixed:** flush the input queue at the start of each exchange, reopen the handle on a reply that does not match.
+- **Found:** VmmemWSL at 23 GB in Task Manager while Linux programs used 1.7 GB. The rest was Linux page cache from the test files.
+  **Fixed:** `drop_caches` as root through `wsl.exe -u root`. `autoMemoryReclaim=dropCache` makes it automatic.
+- **Undone:** the sweep settings. Windows Recovery back on, boot status policy back to showing failures, failsafe task disabled, crash dumps kept on (small).
+
+## 17 November
+
+- The DIMM water block arrived, early. Queued for it: tREFI 49151, then 65535; tCL 36 (with more voltage); then the combined CPU and RAM sign-off, moved here by the owner.
+- Printer tuning comes after that. It measures 103 to 106 ns idle on the same meter, against 71 ns here.
 
 ## Corrections of our own errors
 
@@ -236,3 +266,8 @@ Two of these did damage beyond the notes:
 18. Short runs to search, long runs at checkpoints. Stacking 25 changes on short runs makes the first long failure uninterpretable.
 19. Write the full set every time, and read it back before you reboot.
 20. Liquid metal does not dry, it alloys. A crust a few days after the job means the job, not the metal's age.
+21. A 10-minute pass can be luck. Two configurations passed 10 minutes and failed 30. Near the floor, run every step long.
+22. Cooling buys voltage before it buys clocks. Our repaste took about 10 C off and 20 mV off the floor, and 58x still failed at the ceiling.
+23. More voltage that only moves the crash later is not a fix. 58x crashed at 2:11, 4:00 and 6:48 for +0, +10 and +20 mV.
+24. Benchmark the profile you started from. Ours could not finish Cinebench and logged errors at boot.
+25. Every program that opens a shared HID device sees every reply. Flush before you ask.

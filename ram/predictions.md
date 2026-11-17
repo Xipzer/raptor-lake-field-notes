@@ -4,7 +4,7 @@ On the morning of 13 November, after the no-POST, we stopped and researched ever
 For each one we wrote down what we expected, the rule behind it, and whether the gain was worth the risk.
 Then the owner asked us to run them anyway, one clock at a time. This page compares the two.
 
-Status: 15 November 2026, morning. The RAM tune is finished, and the long runs have had their say.
+Status: 17 November 2026. The RAM tune is finished, and the long runs have had their say. The DIMM water block re-runs may add rows.
 
 ## Sources used for the predictions
 

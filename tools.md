@@ -76,6 +76,10 @@ A small native Windows tool for CPU stability runs. Planned as a public reposito
 - **Mark planned power-offs,** so a repaste does not show up as a crash.
 - **Close GPU-heavy programs before a scripted restart.** A large model server being torn down mid-shutdown hung Windows (0x9F) for about 5 minutes each time.
 - **Flush your journal to disk.** A reboot once left ours ending in zero bytes.
+- **Two programs on one HID device see each other's replies.** Windows copies every input report to every open handle. Flush the input queue before each request and reopen the handle on a reply that does not match. See [cpu/quirks.md](cpu/quirks.md).
+- **WSL2 keeps Linux's file cache in Windows memory.** Task Manager showed VmmemWSL at 23 GB while Linux programs used 1.7 GB; the rest was page cache from the test files.
+  `wsl.exe -u root sh -c "echo 3 > /proc/sys/vm/drop_caches"` gave it back. `autoMemoryReclaim=dropCache` under `[experimental]` in `.wslconfig` makes it automatic. Free the memory before a memory test sizes itself.
+- **Undo the sweep settings at the end.** We had turned Windows Recovery off, set the boot status policy to ignore failures and armed a failsafe task. Keep a list, and put every item back when the campaign ends.
 
 ## Reproduce it on your machine
 
@@ -85,7 +89,7 @@ CPU:
 2. Run your all-core load and see which cores fail. Hold them out and run again. Repeat until it passes.
 3. If your board can, set per-core ratios. If not, find the all-core ratio the weakest core holds.
 4. Heat the loop the way you actually use it (GPU load on a shared loop). Start each run warm.
-5. Find the voltage floor with short runs, back to back. Then validate 3 x 30 minutes hot. Add margin.
+5. Find the voltage floor with short runs, back to back. Then validate 3 x 30 minutes hot. Add margin. Near the floor, run every step for 30 minutes: two of our configurations passed 10 minutes and failed 30.
 6. Count silent crashes as fails. Keep a ledger of every run, including the ones you would rather forget.
 
 RAM:

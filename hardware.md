@@ -26,7 +26,7 @@
 - Pump: D5 pump/reservoir combo with an LCD that shows coolant temperature.
 - Case: Lian Li O11 Dynamic, run with all panels and filters off.
 - RAM: no airflow at first. Since about midnight on 12 to 13 November a loose 120 mm fan sits wedged under the DIMMs, centred.
-  It has not moved since (it was unplugged for part of one test on 14 November, noted where it matters). A DIMM water block is on its way.
+  It has not moved since (it was unplugged for part of one test on 14 November, noted where it matters). A DIMM water block arrived on 17 November; the heat-bound RAM steps get re-run with it.
 
 DIMM temperature under the same y-cruncher load (measured, SPD hub sensors, cooler stick / hotter stick):
 
@@ -64,7 +64,7 @@ Coolant-driven, run by a small tray app through the Super I/O:
 |---|---|
 | Per-core temperature, real clock (APERF/MPERF), package power | CPU MSRs, read through PawnIO's signed IntelMSR module |
 | Corrected CPU errors per core | Windows WHEA-Logger event 19 (APIC ID mapped to core) |
-| Coolant | the pump's own sensor, read over USB HID |
+| Coolant | the pump's own sensor, read over USB HID. Do not share that HID device with another program without flushing stale replies. See [cpu/quirks.md](cpu/quirks.md) |
 | GPU power and temperature | NVIDIA NVML (read only) |
 | DIMM temperature | SPD hub thermal sensor on each DIMM, read over SMBus (PawnIO SmbusI801 module). Cross-checked with HWiNFO |
 | Vcore, VccSA, VDD2, TX, DIMM VDD and VDDQ (PMIC) | HWiNFO |

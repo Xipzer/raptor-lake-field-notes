@@ -1,11 +1,11 @@
 # RAM results
 
-Projector, Kingston FURY Renegade 2x24 GB DDR5-8400, SK hynix 24 Gb M-die. CPU at 57x / 1.340 V throughout.
+Projector, Kingston FURY Renegade 2x24 GB DDR5-8400, SK hynix 24 Gb M-die. CPU at 57x / 1.340 V throughout the RAM work (1.320 V since the CPU re-tests on 15 November).
 Latency is our own pointer-chase figure (lower is better). It is not AIDA64 and does not compare with AIDA64 numbers.
 DIMM temperatures are peaks during the test, cooler stick / hotter stick.
 
-**Status: 15 November 2026, morning. The RAM tune is finished for now.**
-The final set below passed a three-hour memory validation on 15 November. The DIMM water block may move tCL and tREFI later.
+**Status: 17 November 2026. The RAM tune is finished, except the water-block re-runs.**
+The final set below passed a three-hour memory validation on 15 November, and short memory runs on every CPU step that day. The DIMM water block (arrived 17 November) may move tCL and tREFI.
 
 Test per step in the sweep: y-cruncher FFTv4 + N63 + VT3, 7 minutes, 30 GB, plus WHEA check. Since 14 November the long checks add TestMem5 and an at-rest test. See [method.md](method.md).
 
@@ -93,7 +93,8 @@ A DIMM water block is coming. After it, tREFI above 32767 and tCL 36 get a re-ru
 
 Latency is our own pointer-chase figure. It is not AIDA64. Bandwidth moves 2 to 4 GB/s between runs, so read that row as "no worse".
 All sweep figures were taken with a local model server holding most of the GPU memory and 5 to 9 GB of system RAM. Step-to-step comparisons stay fair.
-The before-and-after benchmarks with every background load off are still owed.
+Before and after (Measured, 15 November, final CPU set against the original 59x profile with XMP):
+latency 71.2 against 74.1 ns, read 128.1 against 126.4 GB/s, y-cruncher bench 2.5b 114.72 against 117.75 s. See the [README](../README.md).
 
 Where the latency came from, roughly (run pairs before and after each change):
 
@@ -296,7 +297,7 @@ Ours passed tREFI 65535 in every short run at up to 59 C, and failed TestMem5 at
 
 ## Still to come
 
-- Before-and-after benchmarks against the original profile, with every background load off.
-- After the DIMM water block: tCL 36, tREFI above 32767, tRFC below 660. Then a long re-validation.
+- With the DIMM water block (arrived 17 November), in this order: tREFI 49151, then 65535 (both failed only at about 60 C on the hotter stick);
+  tCL 36 (it corrupted memory at boot at 1.50 V, so it likely needs more voltage as well as cooling); then the combined CPU and RAM sign-off. tRFC below 660 after that, if there is time.
 - Positive controls for the at-rest test (run it on a tREFI known to fail, to see whether it catches the fault) were planned and not yet run.
 - A true cold start (power off for minutes) has not been tested.

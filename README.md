@@ -62,10 +62,20 @@ Rails we kept, and you should too:
 
 Nothing here is a recommendation to run any setting. Direct-die cooling, liquid metal, fixed voltages and memory overclocks all carry real risk of damage and data loss. You own the outcome.
 
-## Status: 15 November 2026, morning
+## Status: 17 November 2026
 
-**The RAM tune is done for now.** The final set passed a three-hour memory validation on 15 November (04:06 to 06:55).
-**The CPU re-tests after the liquid-metal repaste are in progress.** Nothing on the CPU side has changed yet.
+**The campaign is finished**, except the re-runs that wait for the DIMM water block (it arrived on 17 November, early).
+The RAM set passed a three-hour memory validation on 15 November. The CPU set was found and confirmed the same day, after the liquid-metal repaste.
+
+### Final set
+
+| Part | Setting |
+|---|---|
+| P-cores | 57x all cores |
+| E-cores | 46x |
+| Ring | 50x |
+| Vcore | fixed 1.320 V, LLC Level 1 |
+| RAM | DDR5-8400, the timings in the table below |
 
 ### RAM: final set (validated)
 
@@ -101,25 +111,40 @@ The biggest lesson of the RAM work: **the faults that were left were heat-bound.
 then failed TestMem5 after 16 to 50 minutes with the hotter stick near 60 C. Looser refresh times (tRFC 688, tRFCpb 460) did not fix it. A shorter refresh interval did.
 The two sticks run 6 to 9 C apart. See [ram/results.md](ram/results.md).
 
-### What it bought (Measured)
+### CPU: final set (validated)
 
-| Metric | XMP | Final |
+Every CPU step after the repaste ran the memory runs and then Cinebench 2026 with the GPU heating the loop: 10 minutes to search, 30 minutes for the voltage steps.
+
+- **57x all-core at 1.320 V** passed 30 minutes of Cinebench with GPU heat twice (10,151.53 and 10,179.94; hottest core P3 94 to 96 C, about 401 W, water up to 40.1 C, WHEA 0).
+  1.310 V finished but logged 2 corrected errors on P2. So the margin is 10 mV above a failure in the hardest test we run. 1.330 V also passed 30 minutes, if you want margin.
+- **Before the repaste**, 1.330 V failed at 15 minutes and 1.320 V at 26 minutes, with cores near 100 C or above. After it the same voltages pass with cores about 10 C cooler.
+  Cooler silicon lowered the voltage floor by about 20 mV (the owner's guess before the runs; the runs confirmed it).
+- **58x all-core is a silicon limit**: it failed at 1.340, 1.350 and 1.360 V (the owner's ceiling). More voltage only delayed the crash (2:11, 4:00, 6:48).
+- **Per-core 58x mixes failed** in 30-minute runs at ring 50 / 1.340 V, although one of them had passed 10 minutes. **Ring 51** needs 1.360 V; it passed 30 minutes there but was not kept (no measurable latency gain, about 0.9% in Cinebench, at the voltage ceiling).
+- **Repaste, 14 November:** the liquid metal on the die, only 3 to 4 days old, had turned to a matt crust over the P-core area. A fresh syringe fixed it.
+  Same 30-minute test at 57x / 1.340 V: 421 W, hottest core 106 C before; 411 W, 96 C after. See [cpu/thermals.md](cpu/thermals.md) and [cpu/results.md](cpu/results.md).
+
+### Before and after (Measured, 15 November)
+
+Same suite on each profile: our latency meter three times (best kept), y-cruncher bench 2.5b, one run each of Cinebench 2026 multi and single. Water about 28 C at the start of each.
+
+| | Original profile | Final set |
 |---|---|---|
-| Memory latency, our own pointer-chase meter | 75.2 ns | about 71 ns |
-| Read bandwidth, same tool | about 127 GB/s | about 124 to 130 GB/s (run-to-run spread about 2 to 4 GB/s) |
+| Settings | 59x all P-cores, 1.360 V, E-cores 45x, ring 50x, XMP with Auto timings | 57x, 1.320 V, E-cores 46x, ring 50x, tuned RAM |
+| Memory latency, our meter | 74.1 ns | 71.2 ns |
+| Read bandwidth, same tool | 126.4 GB/s | 128.1 GB/s |
+| y-cruncher 2.5b | 117.75 s | 114.72 s |
+| Cinebench 2026 multi | did not finish (stalled twice: 30 minutes, then 6 minutes, no result) | 10,215.28 |
+| Cinebench 2026 single | 553.7 | 540.04 |
+| Corrected CPU errors | two (P3 and P4) within seconds of booting into it | none on the final set |
+
+How to read it:
+
+- Memory-heavy work got faster, despite lower core clocks.
+- Single-core is 2.5% slower: 57x against 59x.
+- The original profile was not stable. It logged two corrected errors right after boot and could not finish an all-core Cinebench run.
 
 The latency meter is ours. It is not AIDA64 and the numbers do not compare with AIDA64 numbers.
-Bandwidth is "no worse", not a gain. The before-and-after benchmarks with every background load off are still owed.
-
-### CPU
-
-- Daily profile, unchanged: 57x all P-cores, E-cores 46x, ring 50x, fixed 1.340 V, LLC Level 1.
-- E-cores 47x: hard freeze. Ring 51x: failed Cinebench with GPU heat at 1.340, 1.350 and 1.360 V (before the repaste).
-- **Repaste, 14 November:** the liquid metal on the die, only 3 to 4 days old, had turned to a matt crust over the P-core area. A fresh syringe fixed it.
-  Same 100-second all-core load: 430 W gave 95 C before, 440 to 513 W gives 81 to 83 C after. About 16 C per 100 W above water before, about 13 after. P-core spread 19 C before, 11 C after.
-  Liquid metal does not dry out, it alloys; a crust days after the job points at the job. See [cpu/thermals.md](cpu/thermals.md).
-- **Re-tests after the repaste, in progress:** 58x all-core at 1.340 V failed again on 15 November (Cinebench with GPU heat crashed at 2:11, one corrected error on P6, hottest core only 92 C, so not heat).
-  1.350 V and 1.360 V are being tried next, then ring 51.
 
 ### Printer
 
@@ -129,10 +154,9 @@ Bandwidth is "no worse", not a gain. The before-and-after benchmarks with every 
 
 ### Still to come
 
-1. The CPU re-tests above (58x at 1.350 / 1.360 V, ring 51).
-2. Before-and-after benchmarks against the original profile, with every background load off.
-3. After the DIMM water block: tCL 36 and tREFI above 32767 get another try.
-4. Printer: the same RAM and CPU method.
+1. **DIMM water block** (arrived 17 November). Re-runs in this order: tREFI 49151, then 65535 (both failed only at about 60 C on the hotter stick);
+   tCL 36 (it corrupted memory at boot at 1.50 V, so it likely needs more voltage, not only cooling); then the combined CPU and RAM sign-off, moved here by the owner.
+2. Printer: the same RAM and CPU method.
 
 ## Licence
 

@@ -62,11 +62,13 @@ It would first need proof that 59x is stable at medium load, which we do not hav
 Dropping the ring from 50x to 45x at 59x / 1.380 V did not delay P2's failure (3:34 vs 3:37).
 On this chip the P-cores were the limit, not the ring. The ring stays at 50x. Your chip may differ: test ring 45x first if your errors are not tied to specific cores.
 
-## Ring 51x does not hold, and the memory test cannot see it
+## Ring 51x needs the voltage ceiling, and the memory test cannot see it
 
 - Ring 51x at 57x / 1.340 V: Cinebench with GPU heat crashed at 2:24. At 1.350 V: crashed at 4:13. No WHEA record either time.
+- After the repaste (with a 58x mix on four cores): 1.340 V crashed at 8:31, 1.350 V at 2:15, sooner with more voltage. 1.360 V passed 10 and 30 minutes (10,178.10, P3 98 C, WHEA 0).
+  Not kept: latency on our meter was 71.3 ns against 71.1 ns at ring 50, Cinebench about 0.9% higher, and 1.360 V is the owner's ceiling.
 - The memory stress test (y-cruncher FFTv4, N63, VT3) passed twice at each voltage.
-- So 50x is this chip's ring ceiling with Hyper-Threading and E-cores on, at a voltage and temperature we accept.
+- So 50x is this chip's ring ceiling with Hyper-Threading and E-cores on, at a voltage and temperature we accept. 51x is possible at 1.360 V and not worth it.
   That matches what one detailed public guide runs on its own 14900KS: a 50x ring ceiling, with the note that Hyper-Threading needs a lower ring
   ([Pakhtunov, CPU guide v2.01](https://pakt.cc/files/CPU_2.01_2026_EN_FINAL.pdf)).
 - Ring, E-cores and P-cores share one voltage rail on this CPU ([SkatterBencher #67](https://skatterbencher.com/2023/12/16/skatterbencher-67-intel-core-i9-14900k-overclocked-to-6200-mhz/)).
@@ -81,7 +83,7 @@ On this chip the P-cores were the limit, not the ring. The ring stays at 50x. Yo
 
 ## Load-line calibration and AC/DC load line (research, not yet tested here)
 
-Our profile is Fixed 1.340 V, LLC Level 1, AC and DC load line both 0.50 mOhm. We asked whether that combination makes sense.
+Our profile is Fixed 1.320 V (1.340 V when this was written), LLC Level 1, AC and DC load line both 0.50 mOhm. We asked whether that combination makes sense.
 This is web research from 13 November. Nothing in this section was measured on our machine yet.
 
 **What the ASRock LLC levels are.** ASRock publishes no numbers. Level 1 is the flattest.
@@ -162,9 +164,24 @@ While HWiNFO was open, our fan-control tray app lost the Super I/O chip both pro
 The motherboard fans ran at about 3,000 rpm for the 45 s or so. Any fan controller that reads the same chip can do this.
 It also means a voltage capture with HWiNFO changes the cooling for as long as it runs. Ours overlapped a Cinebench run that then crashed; we do not know that it mattered.
 
+## Two programs on one USB HID device read each other's replies
+
+HWiNFO and our fan tool both talked to the USB hub that carries the coolant sensor (a Corsair iCUE LINK hub).
+Windows gives every open handle to a HID device its own copy of each input report. So the replies to HWiNFO's requests queued up in our tool's handle too,
+and our tool read them as answers to its own questions. It kept reading stale replies, and the coolant reading was lost until the tool restarted.
+
+Fix in our tool: flush the HID input queue at the start of each exchange, and close and reopen the handle when a reply does not match the request.
+
+## The iGPU driver that hangs HWiNFO
+
+After a driver clean-up, the Intel UHD 770 fell back to an older, board-specific driver package from 2024.
+Windows ranks a package that names the board's exact hardware IDs above a newer generic one, so the old one won.
+HWiNFO 8.60 then hung at GPU detection, inside that driver's Level Zero DLL (`ze_intel_gpu64.dll`).
+Fix: export the old package as a backup, then remove it with `pnputil /delete-driver <inf> /uninstall`. Windows then used the newer driver already on the machine, and HWiNFO started.
+
 ## Errors and crashes without a WHEA record
 
-Three of our failures were crashes with no corrected error logged (59x on P0/P1, 59x ring 45x, 57x at 1.330 V for 30 min).
+Three of our failures before the repaste were crashes with no corrected error logged (59x on P0/P1, 59x ring 45x, 57x at 1.330 V for 30 min). After it, 58x all-core at 1.350 and 1.360 V and every ring 51 crash were silent too.
 A core fault that the CPU cannot correct can take the process down before anything is logged. Treat a silent crash as a fail.
 
 ## Cinebench resets its own affinity
