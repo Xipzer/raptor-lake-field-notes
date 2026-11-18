@@ -2,7 +2,7 @@
 
 What we tried, what broke, and what we learned, in order. Our own mistakes are included. Times are local, November 2026.
 Where a later finding overturned an earlier entry, the entry is corrected in place and the correction is listed under
-"Corrections of our own errors" near the end. Status: 17 November 2026. The campaign is finished, except the DIMM water-block re-runs.
+"Corrections of our own errors" near the end. Status: 18 November 2026. The campaign is finished, except the DIMM water-block re-runs.
 
 ## Before tuning
 
@@ -212,6 +212,15 @@ It found errors (a) to (h) below. Then the sweep went on:
 
 - The DIMM water block arrived, early. Queued for it: tREFI 49151, then 65535; tCL 36 (with more voltage); then the combined CPU and RAM sign-off, moved here by the owner.
 - Printer tuning comes after that. It measures 103 to 106 ns idle on the same meter, against 71 ns here.
+
+## 18 November: the iGPU, for good
+
+- **Broke:** HWiNFO hung at GPU detection again. Windows Update had reinstalled the old board-specific Intel iGPU driver we removed on 15 November.
+  **Mistake:** we first treated it as a new fault. The journal already had the cause and the fix. **Fixed:** removed it again and blocked driver delivery through Windows Update (`ExcludeWUDriversInQualityUpdate=1`).
+- **Found** (GPU tuning on the same machine): with one monitor on the iGPU, the GPU benchmark ran about 5.5% slower, on the old and the new Intel driver alike. Part of it was a benchmark window spanning two monitors, one on each adapter.
+  **Fixed:** all four monitors moved to the graphics card, the iGPU disabled in Windows, then in the BIOS through SCEWIN (token 96, IGPU Multi-Monitor = Disabled).
+- **Mistake:** we first told the owner to change that BIOS field by hand, although our own SCEWIN path writes any BIOS question. Check your own tools before asking a person.
+- **Checked:** CPU and RAM sensors before and after. The idle iGPU drew about 0.008 W. Package power, Vcore, SA and DIMM temperatures moved only by noise. Disabling it freed nothing measurable on the CPU side.
 
 ## Corrections of our own errors
 

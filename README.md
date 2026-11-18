@@ -23,6 +23,10 @@ Almost all measurements here are from Projector. Printer is the comparison point
 
 | File | What it covers |
 |---|---|
+| [quirks.md](quirks.md) | **Start here.** Every quirk in one index: symptom, remedy, public reports, link to the details |
+| [validation.md](validation.md) | How to know a setting is stable: run lengths, run counts, controls, y-cruncher and TestMem5 pitfalls, WHEA accounting, crash dumps, 0x9F |
+| [scewin.md](scewin.md) | Writing BIOS settings from Windows with SCEWIN: every quirk, the token map, the startup failsafe and its limits |
+| [windows.md](windows.md) | Storage clean-up lessons, driver clean-up, the iGPU findings, WSL |
 | [hardware.md](hardware.md) | The platform, cooling, loop order, sensors, BIOS baseline, verified voltages |
 | [cpu/method.md](cpu/method.md) | How CPU stability was tested and why |
 | [cpu/results.md](cpu/results.md) | Every CPU run, per-core failure maps, voltage floors, E-core and ring tests |
@@ -62,7 +66,7 @@ Rails we kept, and you should too:
 
 Nothing here is a recommendation to run any setting. Direct-die cooling, liquid metal, fixed voltages and memory overclocks all carry real risk of damage and data loss. You own the outcome.
 
-## Status: 17 November 2026
+## Status: 18 November 2026
 
 **The campaign is finished**, except the re-runs that wait for the DIMM water block (it arrived on 17 November, early).
 The RAM set passed a three-hour memory validation on 15 November. The CPU set was found and confirmed the same day, after the liquid-metal repaste.
@@ -76,6 +80,7 @@ The RAM set passed a three-hour memory validation on 15 November. The CPU set wa
 | Ring | 50x |
 | Vcore | fixed 1.320 V, LLC Level 1 |
 | RAM | DDR5-8400, the timings in the table below |
+| Other | AC/DC load line 0.50 / 0.50, SA 1.25 V, core C-states on, package C-state off, Tj Max 115, iGPU disabled (all monitors on the graphics card) |
 
 ### RAM: final set (validated)
 
@@ -157,6 +162,25 @@ The latency meter is ours. It is not AIDA64 and the numbers do not compare with 
 1. **DIMM water block** (arrived 17 November). Re-runs in this order: tREFI 49151, then 65535 (both failed only at about 60 C on the hotter stick);
    tCL 36 (it corrupted memory at boot at 1.50 V, so it likely needs more voltage, not only cooling); then the combined CPU and RAM sign-off, moved here by the owner.
 2. Printer: the same RAM and CPU method.
+
+## Top quirks at a glance
+
+The full list, with public sources, is in [quirks.md](quirks.md). The ones that cost us the most time:
+
+| Quirk | Remedy |
+|---|---|
+| tREFI above 32767 passed every short test and failed TestMem5 with the hotter stick near 60 C | Test RAM hot, with TestMem5 as well as y-cruncher. Looser tRFC does not fix it |
+| A 10-minute Vcore floor was 30 mV too low | Search with 10 minutes, confirm with 30 minutes, twice |
+| A marginal tCL 38 made three innocent steps fail | Run the unchanged base (a control) whenever failures cluster |
+| SCEWIN silently skipped changes | Prompts embed the live value: build every import from a fresh export, write the full set, read it back |
+| ASRock blocks SCEWIN import | Set a BIOS administrator password and import with `/cpwd` |
+| A startup failsafe did nothing on fallback timings | Take a fresh export at restore time; and know it cannot fix a no-POST or a freeze |
+| "Slow memory training" boots of 5 to 6 minutes | They were 0x9F shutdown hangs in the GPU driver. Keep small crash dumps on and read the stop code |
+| A blue screen froze for an hour on unstable RAM | Crash dumps off only while an unattended sweep runs |
+| "0 WHEA" said from short windows | Count over the whole period and map each record to a core and a test window |
+| HWiNFO hung at GPU detection | An old board-specific iGPU driver, reinstalled by Windows Update. Remove it and block driver delivery |
+| A monitor on the iGPU cost about 5.5% GPU performance | All monitors on the graphics card. The idle iGPU drew 0.008 W, so disabling it frees no CPU power |
+| A Temp clean-up hit the live WSL swap file | WSL keeps `swap.vhdx` in `%LOCALAPPDATA%\Temp`. Exclude it |
 
 ## Suite
 

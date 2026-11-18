@@ -178,6 +178,8 @@ After a driver clean-up, the Intel UHD 770 fell back to an older, board-specific
 Windows ranks a package that names the board's exact hardware IDs above a newer generic one, so the old one won.
 HWiNFO 8.60 then hung at GPU detection, inside that driver's Level Zero DLL (`ze_intel_gpu64.dll`).
 Fix: export the old package as a backup, then remove it with `pnputil /delete-driver <inf> /uninstall`. Windows then used the newer driver already on the machine, and HWiNFO started.
+Windows Update put the old package back three days later; blocking driver delivery through Windows Update stopped that. HWiNFO's own workaround is Settings > Safety > oneAPI Support off.
+In the end the iGPU was disabled altogether (all monitors moved to the graphics card). Its idle power was about 0.008 W, so that freed nothing on the CPU side. See [../windows.md](../windows.md#the-old-intel-igpu-driver-that-crashes-hwinfo).
 
 ## Errors and crashes without a WHEA record
 
